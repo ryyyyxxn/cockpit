@@ -83,6 +83,7 @@ button{font:inherit}
 .pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--sunk);color:var(--muted)}
 .pill.ok{background:var(--ok-bg);color:var(--accent)} .pill.warn{background:var(--warn-bg);color:var(--warn)}
 .acct{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.acct select{min-width:0;flex:0 1 auto;width:auto;max-width:62%}
 .acct .sw{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:8px}
 .split{display:flex;height:14px;border-radius:99px;overflow:hidden;gap:2px;background:var(--sunk)}
 .tablebox{overflow-x:auto}
@@ -121,6 +122,14 @@ td.r,th.r{text-align:right}
 .wz .nav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .linkbtn{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px 4px}
 .wz .sum{display:grid;grid-template-columns:1fr auto;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:14px}
+.card select,.card input{max-width:100%}
+td.num,th.num,.pill{white-space:nowrap}
+.hrow{display:flex;align-items:center;gap:8px}
+.hrow h2,.hrow h3{margin:0}
+.hrow h3{font-size:14px;font-weight:600;margin-top:6px}
+.infobtn{flex:none;width:22px;height:22px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 12px var(--mono);cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.infobtn[aria-expanded="true"],.infobtn:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.infotxt{margin:0;font-size:13px;line-height:1.5;color:var(--ink);background:var(--sunk);border-radius:10px;padding:10px 12px;max-width:62ch}
 dialog#ask{border:none;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);width:min(560px,calc(100% - 32px));max-height:calc(100% - 32px)}
 dialog#ask::backdrop{background:rgba(0,0,0,.45)}
 #ask .in{padding:22px;display:flex;flex-direction:column;gap:12px}
@@ -149,6 +158,7 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
         <button class="tab" role="tab" id="t-dash" data-tab="dash" aria-selected="true">Tableau de bord</button>
         <button class="tab" role="tab" id="t-rel" data-tab="rel" aria-selected="false">Relevé</button>
         <button class="tab" role="tab" id="t-abo" data-tab="abo" aria-selected="false">Abonnements</button>
+        <button class="tab" role="tab" id="t-ana" data-tab="ana" aria-selected="false">Analyses</button>
         <button class="tab" role="tab" id="t-pro" data-tab="pro" aria-selected="false" hidden>Pro</button>
         <button class="tab" role="tab" id="t-set" data-tab="set" aria-selected="false">Réglages</button>
       </nav>
@@ -257,7 +267,7 @@ function getMonth(k){ if(!months[k]) months[k]={mois:k,ops:[],note:'',cloture:fa
 /* ---------- computations ---------- */
 function daysLeft(k){const b=periodBounds(k);const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());if(t<b.start||t>b.end)return 0;return Math.round((b.end-t)/864e5)+1}
 function compteVal(id){const c=(cfg.comptes||[]).find(x=>x.id===id);return c?Number(c.montant)||0:0}
-function goalActual(o){return o.type==='ca'?caGoalActual(o):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
+function goalActual(o){return o.type==='ca'?caGoalActual(o):o.compteId==='__all'?(cfg.comptes||[]).filter(c=>!isCourant(c)).reduce((a,c)=>a+(+c.montant||0),0):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
 function paiesAvant(ech){ if(!ech) return 0; const end=new Date(ech+'T23:59:59'); let n=0; let y=now.getFullYear(),mo=now.getMonth(); const t=new Date(now.getFullYear(),now.getMonth(),now.getDate()); if(payDate(y,mo)<t) mo++; while(payDate(y,mo)<=end && n<240){n++; mo++} return n }
 function stats(k){
   const m=months[k]; const ops=m?m.ops:[];
@@ -385,8 +395,90 @@ function migrate(){ if(migrated||!db) return; migrated=true; const touched=new S
     m.ops=keep });
   Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ if(srcOf(o)==='cic'&&/revolut/i.test(o.libelle)&&(o.cat==='autre'||o.cat==='revenu')){o.cat='interne';touched.add(k)} }) });
   touched.forEach(saveMonth); }
+function objMigrate(){ if(!db||!cfg||cfg.objMigr1) return; const hasEp=(cfg.comptes||[]).some(c=>!isCourant(c));
+  (cfg.objectifs||[]).forEach(o=>{ if(o.type==='ca'&&o.debut) o.debut=o.debut.slice(0,8)+'01'; else if(!o.compteId&&!(+o.actuel)&&hasEp) o.compteId='__all' }); cfg.objMigr1=true; saveCfg() }
 function revMigrate(){ if(!db||!cfg||cfg.revMigr1) return; const touched=new Set(); Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(+o.montant>0&&(!CAT[o.cat]||isSpendG(g))&&!isProAcc(srcOf(o))){ o.cat='revenu'; touched.add(k) } }) }); cfg.revMigr1=true; saveCfg(); touched.forEach(saveMonth) }
 /* ---------- wizard ---------- */
+/* ---------- info bubbles ---------- */
+const openInfo=new Set();
+const ib=id=>`<button class="infobtn" type="button" data-act="info" data-id="${id}" aria-expanded="${openInfo.has(id)}" aria-controls="info-${id}" aria-label="Comment c'est calculé">i</button>`;
+const ip=(id,txt)=>`<p class="infotxt" id="info-${id}" ${openInfo.has(id)?'':'hidden'}>${txt}</p>`;
+const ht=(tag,id,title,cls)=>`<div class="hrow"><${tag} id="${id}" ${cls?`class="${cls}"`:''}>${title}</${tag}>${ib(id)}</div>`;
+
+/* ---------- analyses ---------- */
+let anaN=6;
+const isDepOp=o=>{ const c=CAT[o.cat]; return +o.montant<0&&!isProAcc(srcOf(o))&&c&&c.g!=='interne'&&c.g!=='epargne'&&c.g!=='revenu'&&c.g!=='pro' };
+function viewAna(){
+  const keys=Array.from({length:anaN},(_,i)=>addMonths(cur,i-anaN+1)), withData=keys.filter(k=>months[k]&&(months[k].ops||[]).length);
+  if(!withData.length) return `<section class="card"><h2>Analyses</h2><div class="empty">Importe au moins un relevé pour voir tes analyses.</div></section>`;
+  const per=keys.map(k=>({k,...stats(k)})), n=withData.length;
+  const avg=f=>per.filter(p=>withData.includes(p.k)).reduce((a,p)=>a+f(p),0)/n;
+  const aRev=avg(p=>p.revenus), aDep=avg(p=>p.dep), aEp=avg(p=>p.epargne), aTaux=aRev>0?aEp/aRev:0;
+  const ops=withData.flatMap(k=>(months[k].ops||[]).filter(isDepOp));
+  const totDep=ops.reduce((a,o)=>a-o.montant,0)||1;
+  // categories
+  const byCat={}; ops.forEach(o=>byCat[o.cat]=(byCat[o.cat]||0)-o.montant);
+  const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  // current vs average
+  const sc=stats(cur), prevK=withData.filter(k=>k!==cur), cmp=CATS.filter(c=>c.g!=='interne'&&c.g!=='revenu'&&c.g!=='pro'&&c.g!=='epargne').map(c=>{ const now=sc.by[c.id]||0, moy=prevK.length?prevK.reduce((a,k)=>a+(stats(k).by[c.id]||0),0)/prevK.length:0; return {c,now,moy,d:now-moy} }).filter(x=>x.now>0||x.moy>0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,8);
+  // merchants
+  const byM={}; ops.forEach(o=>{ const k=aboKey(o.libelle)||'?'; const m=byM[k]||(byM[k]={k,nom:aboLabel(k),t:0,n:0}); m.t-=o.montant; m.n++ });
+  const top=Object.values(byM).sort((a,b)=>b.t-a.t).slice(0,10);
+  // weekdays
+  const wd=[0,0,0,0,0,0,0], JOURS=['lun.','mar.','mer.','jeu.','ven.','sam.','dim.']; ops.forEach(o=>{ const d=new Date(o.date+'T12:00:00').getDay(); wd[(d+6)%7]-=o.montant }); const wmx=Math.max(1,...wd);
+  // small purchases
+  const small=ops.filter(o=>-o.montant<10), smallT=small.reduce((a,o)=>a-o.montant,0);
+  // days without spending (current month)
+  const curOps=((months[cur]||{}).ops||[]).filter(isDepOp), today=new Date(), isCurMonth=cur===ymd(today).slice(0,7);
+  const dim=new Date(+cur.slice(0,4),+cur.slice(5,7),0).getDate(), daysSoFar=isCurMonth?today.getDate():dim;
+  const spentDays=new Set(curOps.map(o=>o.date)).size, freeDays=Math.max(0,daysSoFar-spentDays);
+  const curPl=sc.plaisir, pb=+cfg.plaisirBudget||0, daily=daysSoFar?curPl/daysSoFar:0, proj=isCurMonth?daily*dim:curPl;
+  // monthly chart
+  const cper=per.slice(keys.indexOf(withData[0]));
+  const mx=Math.max(1,...cper.map(p=>Math.max(p.dep,p.revenus)));
+  const pct=v=>Math.max(0,Math.min(100,v));
+  const COL=['var(--accent)','var(--warn)','var(--bar2)','var(--ink)','var(--muted)','var(--line)'];
+  return `<div style="display:flex;flex-direction:column;gap:20px">
+  <div class="editrow" role="group" aria-label="Période analysée"><span class="muted" style="font-size:14px">Période :</span>${[3,6,12].map(x=>`<button class="btn ghost small" data-act="anaN" data-n="${x}" aria-pressed="${anaN===x}" style="${anaN===x?'background:var(--ink);color:var(--bg);border-color:var(--ink)':''}">${x} mois</button>`).join('')}<span class="muted" style="font-size:13px">${n} mois avec des données, jusqu'à ${esc(monthLabel(cur))}</span></div>
+  <section class="kpis" aria-label="Moyennes de la période">
+    <div class="kpi">${ht('div','i-rev','Revenus moyens / mois','muted')}${ip('i-rev','Moyenne des entrées d’argent classées en « Revenus » sur les mois de la période qui ont des données. Les virements entre tes comptes et l’argent repris sur ton épargne ne comptent pas.')}<div class="big">${eur(aRev)}</div></div>
+    <div class="kpi">${ht('div','i-dep','Dépenses moyennes / mois','muted')}${ip('i-dep','Moyenne de tes dépenses perso : toutes les sorties d’argent de tes comptes courants, sauf l’épargne, les virements internes et l’activité pro.')}<div class="big">${eur(aDep)}</div></div>
+    <div class="kpi">${ht('div','i-ep','Épargne moyenne / mois','muted')}${ip('i-ep','Moyenne de ce qui part vers ton épargne (livrets, placements) moins ce que tu y reprends. Négatif = tu as puisé dans ton épargne.')}<div class="big ${aEp<0?'bad':'good'}">${eur(aEp)}</div></div>
+    <div class="kpi">${ht('div','i-tx','Taux d’épargne moyen','muted')}${ip('i-tx','Épargne moyenne divisée par revenus moyens. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${aTaux>=0.2?'good':'bad'}">${Math.round(aTaux*100)} %</div></div>
+  </section>
+  <div class="row">
+  <section class="card grow">${ht('h2','i-evo','Évolution mois par mois')}${ip('i-evo','Pour chaque mois : revenus (gris), dépenses perso (orange) et épargne nette (vert). Survole une barre pour voir les montants.')}
+    <div class="legend"><span><i style="background:var(--muted)"></i>Revenus</span><span><i style="background:var(--warn)"></i>Dépenses</span><span><i style="background:var(--accent)"></i>Épargne</span></div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(3,cper.length)},minmax(0,1fr));gap:6px;align-items:end;height:180px">${cper.map(p=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${esc(monthLabel(p.k))} : revenus ${eur(p.revenus)}, dépenses ${eur(p.dep)}, épargne ${eur(p.epargne)}"><div style="display:flex;gap:2px;align-items:flex-end;height:140px;width:100%;justify-content:center"><span style="width:28%;height:${pct(p.revenus/mx*100)}%;background:var(--muted);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(p.dep/mx*100)}%;background:var(--warn);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(Math.max(0,p.epargne)/mx*100)}%;background:var(--accent);border-radius:3px 3px 0 0"></span></div><span class="muted num" style="font-size:11px">${esc(shortMonth(p.k))}</span></div>`).join('')}</div>
+  </section>
+  <section class="card side">${ht('h2','i-cat','Où part ton argent')}${ip('i-cat','Répartition de toutes tes dépenses perso de la période par catégorie, en part du total, avec la moyenne par mois.')}
+    <div class="split" role="img" aria-label="Répartition des dépenses">${cats.slice(0,6).map(([c,v],i)=>`<span style="width:${v/totDep*100}%;background:${COL[i%COL.length]}" title="${esc(CAT[c].nom)}"></span>`).join('')}</div>
+    ${cats.slice(0,8).map(([c,v],i)=>`<div class="catline"><div class="head"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${COL[i%COL.length]}"></span>${esc(CAT[c].nom)}</span><span class="num">${Math.round(v/totDep*100)} % · ${eur(v/n)}/mois</span></div></div>`).join('')}
+  </section>
+  </div>
+  <div class="row">
+  <section class="card grow">${ht('h2','i-cmp',esc(monthLabel(cur))+' face à ta moyenne')}${ip('i-cmp','Pour chaque catégorie : ce que tu as dépensé ce mois-ci, comparé à ta moyenne des autres mois de la période. Les plus gros écarts sont en haut. Orange = tu dépenses plus que d’habitude.')}
+    ${cmp.length?`<div class="tablebox"><table><thead><tr><th>Catégorie</th><th class="r">Ce mois</th><th class="r">Moyenne</th><th class="r">Écart</th></tr></thead><tbody>${cmp.map(x=>`<tr><td>${esc(x.c.nom)}</td><td class="r num">${eur(x.now)}</td><td class="r num">${eur(x.moy)}</td><td class="r"><span class="pill ${x.d>5?'warn':x.d<-5?'ok':''}">${x.d>=0?'+':''}${eur(x.d)}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Pas assez de données.</div>'}
+  </section>
+  <section class="card side">${ht('h2','i-proj','Projection fin de mois')}${ip('i-proj','Ton budget plaisir dépensé jusqu’ici, divisé par le nombre de jours écoulés, multiplié par le nombre de jours du mois. Si tu continues au même rythme, voilà où tu finiras.')}
+    <div class="big num ${proj>pb&&pb?"bad":""}" style="font-size:28px;font-weight:600">${eur(proj)}</div>
+    <div class="muted" style="font-size:14px">de budget plaisir dépensé à la fin du mois${pb?`, pour un budget de ${eur(pb)}`:''} · ${eur(daily)}/jour en moyenne</div>
+    ${pb?`<div class="bar ${proj>pb?'over':''}"><span style="width:${pct(proj/pb*100)}%"></span></div><div class="${proj>pb?'bad':'good'}" style="font-size:14px">${proj>pb?`Au rythme actuel, tu dépasses de ${eur(proj-pb)}.`:`Au rythme actuel, il te restera ${eur(pb-proj)}.`}</div>`:''}
+    ${ht('h3','i-free','Jours sans dépense','muted')}${ip('i-free','Nombre de jours de ce mois où tu n’as fait aucune dépense perso. Plus il y en a, mieux c’est.')}
+    <div class="num" style="font-size:22px;font-weight:600">${freeDays} <span class="muted" style="font-size:14px;font-weight:400">sur ${daysSoFar} jours</span></div>
+  </section>
+  </div>
+  <div class="row">
+  <section class="card grow">${ht('h2','i-top','Tes 10 plus gros postes')}${ip('i-top','Les commerçants ou services où tu as le plus dépensé sur la période, avec le nombre de paiements et le ticket moyen. Les noms sont déduits du libellé bancaire.')}
+    <div class="tablebox"><table><thead><tr><th>Où</th><th class="r">Total</th><th class="r">Paiements</th><th class="r">Ticket moyen</th></tr></thead><tbody>${top.map(m=>`<tr><td>${esc(m.nom)}</td><td class="r num">${eur(m.t)}</td><td class="r num">${m.n}</td><td class="r num">${eur(m.t/m.n,2)}</td></tr>`).join('')}</tbody></table></div>
+  </section>
+  <section class="card side">${ht('h2','i-wd','Tes jours qui coûtent')}${ip('i-wd','Total de tes dépenses perso de la période selon le jour de la semaine. Utile pour repérer, par exemple, des week-ends qui coûtent cher.')}
+    ${wd.map((v,i)=>`<div class="catline"><div class="head"><span>${JOURS[i]}</span><span class="num">${eur(v)}</span></div><div class="bar"><span style="width:${v/wmx*100}%"></span></div></div>`).join('')}
+    ${ht('h3','i-small','Petites dépenses (moins de 10 €)','muted')}${ip('i-small','Toutes les dépenses de moins de 10 € de la période : cafés, snacks, petits achats. Une à une elles semblent anodines, mais additionnées elles pèsent.')}
+    <div class="num" style="font-size:22px;font-weight:600">${eur(smallT)} <span class="muted" style="font-size:14px;font-weight:400">en ${small.length} achats · ${eur(smallT/n)}/mois</span></div>
+  </section>
+  </div></div>` }
+
 /* ---------- micro-entreprise ---------- */
 const MICRO={vente:{nom:'Vente de marchandises (achat-revente)',taux:12.3,vl:1,cfp:0.1,plafond:203100,tva:85000},
   services:{nom:'Prestations de services (BIC)',taux:21.2,vl:1.7,cfp:0.2,plafond:83600,tva:37500},
@@ -659,7 +751,7 @@ function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg
   cfg.comptes=comptes;
   const today=new Date(); cfg.objectifs=cfg.objectifs||[];
   wz.obj.forEach(o=>{ if(!o.nom.trim()&&!wzN(o.cible)) return; const d=new Date(today.getFullYear(),today.getMonth()+o.h,today.getDate());
-    const ca=o.type==='ca'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||((ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:'',...(ca?{type:'ca',debut:ymd(today)}:{})}) });
+    const ca=o.type==='ca'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||((ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:ca?'':(comptes.some(c=>!isCourant(c))?'__all':''),...(ca?{type:'ca',debut:ymd(today).slice(0,8)+'01'}:{})}) });
   if(!(cfg.virements||[]).length&&b.epargne>0){ const e=comptes.find(c=>!isCourant(c)); cfg.virements=[{nom:'Épargne'+(e?' · '+e.nom:''),montant:b.epargne}] }
   cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
@@ -683,9 +775,9 @@ function render(){
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
-  ensureAccounts(); revMigrate();
+  ensureAccounts(); revMigrate(); objMigrate();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
-  $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='pro'?viewPro(): viewSet();
+  $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='ana'?viewAna(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
 }
 
@@ -709,10 +801,10 @@ function viewDash(){
   ${viewReminder()}
   ${cfg.onboardSkipped&&!cfg.onboarded?`<section class="card" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--ok-bg)"><div style="display:flex;flex-direction:column;gap:2px"><strong>Ton cockpit n'est pas encore réglé</strong><span class="muted" style="font-size:14px">2 minutes de questions pour avoir des chiffres et des objectifs qui te correspondent.</span></div><button class="btn" data-act="wizard">Compléter mon profil</button></section>`:''}
   <section class="kpis" aria-label="Indicateurs clés">
-    <div class="kpi"><div class="muted">Patrimoine total</div><div class="big">${eur(total)}</div><div class="sub">${comptes.length} comptes</div></div>
-    <div class="kpi"><div class="muted">Épargne disponible</div><div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:'Matelas de sécurité atteint'}</div></div>
-    <div class="kpi"><div class="muted">Taux d'épargne · ${esc(shortMonth(cur))}</div><div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
-    <div class="kpi"><div class="muted">Budget plaisir restant</div><div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
+    <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} comptes</div></div>
+    <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:'Matelas de sécurité atteint'}</div></div>
+    <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
+    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
   <div class="row">
     <section class="card grow" aria-labelledby="h-obj">
@@ -721,7 +813,7 @@ function viewDash(){
         const pill=a>=c?'<span class="pill ok">Atteint</span>':paies===0&&o.echeance?'<span class="pill warn">Échéance passée</span>':'';
         return `<div class="goal"><div class="head"><span style="font-weight:600">${esc(o.nom)} ${pill}</span><span class="num">${eur(a)} / ${eur(c)}</span></div>
         <div class="bar"><span style="width:${p}%"></span></div>
-        <div class="muted" style="font-size:13px">${a>=c?'Objectif tenu.':o.echeance?`Reste ${eur(rest)} · ${paies} paie${paies>1?'s':''} avant le ${new Date(o.echeance).toLocaleDateString('fr-FR')} → <strong class="num">${eur(paies?Math.ceil(rest/paies):rest)}</strong> par paie`:`Reste ${eur(rest)}`}${o.compteId?' · suit le solde du compte':''}</div></div>`}).join(''):'<div class="empty">Aucun objectif. Ajoute-en un dans Réglages.</div>'}
+        <div class="muted" style="font-size:13px">${a>=c?'Objectif tenu.':o.echeance?`Reste ${eur(rest)} · ${paies} paie${paies>1?'s':''} avant le ${new Date(o.echeance).toLocaleDateString('fr-FR')} → <strong class="num">${eur(paies?Math.ceil(rest/paies):rest)}</strong> par paie`:`Reste ${eur(rest)}`}${o.type==='ca'?' · chiffre d’affaires encaissé depuis le '+new Date((o.debut||'')+'T12:00:00').toLocaleDateString('fr-FR'):o.compteId==='__all'?' · suit toute ton épargne':o.compteId?' · suit le solde du compte':' · montant à mettre à jour dans Réglages'}</div></div>`}).join(''):'<div class="empty">Aucun objectif. Ajoute-en un dans Réglages.</div>'}
     </section>
     <section class="card side" aria-labelledby="h-pat">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 id="h-pat">Comptes</h2><span class="muted" style="font-size:13px">Mets à jour les soldes ici</span></div>
@@ -871,7 +963,8 @@ function viewSet(){
       <div class="f" style="display:flex;flex-direction:column;gap:4px;flex:1 1 180px"><label class="lbl" for="o-n-${o.id}">Objectif</label><input type="text" id="o-n-${o.id}" value="${esc(o.nom)}" data-act="goal" data-id="${o.id}" data-k="nom"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-c-${o.id}">Cible</label><input class="amount" id="o-c-${o.id}" inputmode="decimal" value="${o.cible}" data-act="goal" data-id="${o.id}" data-k="cible"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-e-${o.id}">Échéance</label><input type="date" id="o-e-${o.id}" value="${o.echeance||''}" data-act="goal" data-id="${o.id}" data-k="echeance"></div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${o.type!=='ca'&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé</option>`:''}</select></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option><option value="__all" ${o.type!=='ca'&&o.compteId==='__all'?'selected':''}>Toute mon épargne</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${o.type!=='ca'&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé</option>`:''}</select></div>
+      ${o.type==='ca'?`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-d-${o.id}">Compté depuis</label><input type="date" id="o-d-${o.id}" value="${o.debut||''}" data-act="goal" data-id="${o.id}" data-k="debut"></div>`:''}
       ${o.compteId||o.type==='ca'?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
       <button class="iconbtn" data-act="goaldel" data-id="${o.id}" aria-label="Supprimer ${esc(o.nom)}" style="align-self:flex-end">✕</button></div>`).join('')}
     <button class="btn ghost small" data-act="goaladd" style="align-self:flex-start">Ajouter un objectif</button>
@@ -891,7 +984,7 @@ function viewSet(){
 const num=v=>{const n=pNum(v);return isNaN(n)?0:n};
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-act],[data-tab].tab'); if(!t) return;
-  if(t.classList.contains('tab')){tab=t.dataset.tab;render();return}
+  if(t.classList.contains('tab')&&t.dataset.tab){tab=t.dataset.tab;render();return}
   const a=t.dataset.act;
   if(a==='goto'){tab=t.dataset.tab;render();window.scrollTo({top:0})}
   else if(a==='pick'){document.getElementById('csv').click()}
@@ -907,6 +1000,8 @@ document.addEventListener('click',e=>{
   else if(a==='viradd'){(cfg.virements=cfg.virements||[]).push({nom:'Nouveau virement',montant:0});saveCfg();render()}
   else if(a==='virdel'){cfg.virements.splice(+t.dataset.i,1);saveCfg();render()}
   else if(a==='accadd'){const ty=t.dataset.type||'epargne';(cfg.comptes=cfg.comptes||[]).push({id:uid(),nom:ty==='courant'?'Nouvelle banque':'Nouveau livret',type:ty,montant:0,dispo:false});saveCfg();render();const ins=document.querySelectorAll('[data-act="accset"][data-k="nom"]');if(ins.length){ins[ins.length-1].focus();ins[ins.length-1].select()}}
+  else if(a==='info'){const id=t.dataset.id; if(openInfo.has(id)) openInfo.delete(id); else openInfo.add(id); render()}
+  else if(a==='anaN'){anaN=+t.dataset.n; render()}
   else if(a==='icsadd'){icsDownload()}
   else if(a==='icsurssaf'){icsUrssaf()}
   else if(a==='livre'){livreDownload()}
@@ -938,7 +1033,7 @@ document.addEventListener('change',e=>{
   else if(a==='bud'){(cfg.budgets=cfg.budgets||{})[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='virset'){const v=cfg.virements[+t.dataset.i];v[t.dataset.k]=t.dataset.k==='montant'?num(t.value):t.value;saveCfg();render()}
   else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;c[k]=(k==='dispo'||k==='pro')?t.checked:k==='montant'?num(t.value):t.value;saveCfg();render()}
-  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||ymd(new Date())}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
+  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
