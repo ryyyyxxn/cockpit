@@ -325,9 +325,10 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   const nm=deacc(cfg&&cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2);
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
-function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]) return cfg.regles[k]; const pg=proGuess(l,a,src); if(pg) return pg; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
+function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]){ const rc=cfg.regles[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
   for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&a>0) continue; return c } }
-  return a>0?((courants()[0]||{}).id===src||!courants().length?'revenu':'autre'):'autre' }
+  return a>0?'revenu':'autre' }
+const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
 const opKey=(src,x)=>src+'|'+x.date+'|'+x.libelle+'|'+Number(x.montant);
 function countKeys(ops,f){ const c={}; ops.forEach(x=>{const k=f(x); c[k]=(c[k]||0)+1}); return c }
 function importOps(list,src){
@@ -384,6 +385,7 @@ function migrate(){ if(migrated||!db) return; migrated=true; const touched=new S
     m.ops=keep });
   Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ if(srcOf(o)==='cic'&&/revolut/i.test(o.libelle)&&(o.cat==='autre'||o.cat==='revenu')){o.cat='interne';touched.add(k)} }) });
   touched.forEach(saveMonth); }
+function revMigrate(){ if(!db||!cfg||cfg.revMigr1) return; const touched=new Set(); Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(+o.montant>0&&(!CAT[o.cat]||isSpendG(g))&&!isProAcc(srcOf(o))){ o.cat='revenu'; touched.add(k) } }) }); cfg.revMigr1=true; saveCfg(); touched.forEach(saveMonth) }
 /* ---------- wizard ---------- */
 /* ---------- micro-entreprise ---------- */
 const MICRO={vente:{nom:'Vente de marchandises (achat-revente)',taux:12.3,vl:1,cfp:0.1,plafond:203100,tva:85000},
@@ -681,7 +683,7 @@ function render(){
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
-  ensureAccounts();
+  ensureAccounts(); revMigrate();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
   $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
