@@ -149,6 +149,7 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
         <button class="tab" role="tab" id="t-dash" data-tab="dash" aria-selected="true">Tableau de bord</button>
         <button class="tab" role="tab" id="t-rel" data-tab="rel" aria-selected="false">Relevé</button>
         <button class="tab" role="tab" id="t-abo" data-tab="abo" aria-selected="false">Abonnements</button>
+        <button class="tab" role="tab" id="t-pro" data-tab="pro" aria-selected="false" hidden>Pro</button>
         <button class="tab" role="tab" id="t-set" data-tab="set" aria-selected="false">Réglages</button>
       </nav>
     </div>
@@ -198,7 +199,12 @@ const CATS=[
  {id:'cadeau',nom:'Cadeaux',g:'projet'},
  {id:'epargne',nom:'Épargne & investissement',g:'epargne'},
  {id:'revenu',nom:'Revenus',g:'revenu'},
- {id:'interne',nom:'Virement interne (ignoré)',g:'interne'}
+ {id:'interne',nom:'Virement interne (ignoré)',g:'interne'},
+ {id:'ca',nom:'Pro · Chiffre d’affaires encaissé',g:'pro'},
+ {id:'achats_pro',nom:'Pro · Achats / stock',g:'pro'},
+ {id:'frais_pro',nom:'Pro · Frais (envois, logiciels…)',g:'pro'},
+ {id:'urssaf',nom:'Pro · URSSAF & impôts',g:'pro'},
+ {id:'remuneration',nom:'Pro · Rémunération versée',g:'pro'}
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
 const KEYWORDS=[
@@ -251,17 +257,17 @@ function getMonth(k){ if(!months[k]) months[k]={mois:k,ops:[],note:'',cloture:fa
 /* ---------- computations ---------- */
 function daysLeft(k){const b=periodBounds(k);const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());if(t<b.start||t>b.end)return 0;return Math.round((b.end-t)/864e5)+1}
 function compteVal(id){const c=(cfg.comptes||[]).find(x=>x.id===id);return c?Number(c.montant)||0:0}
-function goalActual(o){return o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
+function goalActual(o){return o.type==='ca'?caGoalActual(o):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
 function paiesAvant(ech){ if(!ech) return 0; const end=new Date(ech+'T23:59:59'); let n=0; let y=now.getFullYear(),mo=now.getMonth(); const t=new Date(now.getFullYear(),now.getMonth(),now.getDate()); if(payDate(y,mo)<t) mo++; while(payDate(y,mo)<=end && n<240){n++; mo++} return n }
 function stats(k){
   const m=months[k]; const ops=m?m.ops:[];
   const by={}; CATS.forEach(c=>by[c.id]=0);
   let rev=0;
-  ops.forEach(o=>{const a=Number(o.montant)||0; const c=CAT[o.cat]?o.cat:'autre';
+  ops.forEach(o=>{ if(isProAcc(srcOf(o))) return; const a=Number(o.montant)||0; const c=CAT[o.cat]?o.cat:'autre';
     if(c==='revenu'){rev+=a} else {by[c]+= -a}});
   const revenus=rev>0?rev:(Number(cfg.revenus)||0);
   const epargne=by.epargne;
-  let dep=0,plaisir=0; CATS.forEach(c=>{ if(c.g!=='epargne'&&c.g!=='revenu'&&c.g!=='interne'){dep+=by[c.id]; if(c.g==='plaisir') plaisir+=by[c.id]} });
+  let dep=0,plaisir=0; CATS.forEach(c=>{ if(c.g!=='epargne'&&c.g!=='revenu'&&c.g!=='interne'&&c.g!=='pro'){dep+=by[c.id]; if(c.g==='plaisir') plaisir+=by[c.id]} });
   return {by,revenus,epargne,dep,plaisir,taux:revenus>0?epargne/revenus:0,n:ops.length,revSource:rev>0?'relevé':'réglages'};
 }
 
@@ -314,7 +320,7 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   const nm=deacc(cfg&&cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2);
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
-function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]) return cfg.regles[k]; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
+function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]) return cfg.regles[k]; const pg=proGuess(l,a,src); if(pg) return pg; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
   for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&a>0) continue; return c } }
   return a>0?((courants()[0]||{}).id===src||!courants().length?'revenu':'autre'):'autre' }
 const opKey=(src,x)=>src+'|'+x.date+'|'+x.libelle+'|'+Number(x.montant);
@@ -374,6 +380,97 @@ function migrate(){ if(migrated||!db) return; migrated=true; const touched=new S
   Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ if(srcOf(o)==='cic'&&/revolut/i.test(o.libelle)&&(o.cat==='autre'||o.cat==='revenu')){o.cat='interne';touched.add(k)} }) });
   touched.forEach(saveMonth); }
 /* ---------- wizard ---------- */
+/* ---------- micro-entreprise ---------- */
+const MICRO={vente:{nom:'Vente de marchandises (achat-revente)',taux:12.3,vl:1,cfp:0.1,plafond:203100,tva:85000},
+  services:{nom:'Prestations de services (BIC)',taux:21.2,vl:1.7,cfp:0.2,plafond:83600,tva:37500},
+  liberal:{nom:'Profession libérale (BNC)',taux:25.6,vl:2.2,cfp:0.2,plafond:83600,tva:37500}};
+const isIndep=()=>!!cfg&&(cfg.profil==='independant'||cfg.profil==='mixte');
+const microCfg=()=>{ const m=(cfg&&cfg.micro)||{}; const d=MICRO[m.activite]||MICRO.vente; return {...m,def:d,activite:m.activite||'vente',decl:m.decl||'mensuel',vl:!!m.vl,
+  taux:m.taux!=null&&m.taux!==''?+m.taux:d.taux, plafond:+m.plafond||d.plafond, tva:+m.tva||d.tva} };
+function microRate(){ const m=microCfg(); return (m.taux+m.def.cfp+(m.vl?m.def.vl:0))/100 }
+const isProAcc=id=>{ const c=((cfg&&cfg.comptes)||[]).find(x=>x.id===id); return !!(c&&c.pro) };
+const hasProAcc=()=>((cfg&&cfg.comptes)||[]).some(c=>c.pro);
+const MARKET=/vinted|leboncoin|le bon coin|ebay|stockx|wethenew|vestiaire|sumup|stripe|shopify|etsy|depop|zettle|lydia pro|paypal/;
+function proGuess(l,a,src){ if(!isIndep()) return null; const s=deacc(l), pro=isProAcc(src);
+  const nm=deacc(cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2), own=nm.length>=2&&nm.every(w=>s.includes(w));
+  if(pro){ if(a>0) return own?'interne':'ca';
+    if(own) return 'remuneration'; if(/urssaf|impots|dgfip|tresor public|cfe/.test(s)) return 'urssaf';
+    if(/la poste|colissimo|mondial relay|chronopost|ups|dhl|relais colis|boxtal|canva|shopify|google|meta|facebook|instagram|ovh|wix|logiciel/.test(s)) return 'frais_pro';
+    return microCfg().activite==='vente'?'achats_pro':'frais_pro' }
+  if(a>0&&own&&hasProAcc()) return 'revenu';
+  if(a>0&&MARKET.test(s)) return 'ca';
+  if(a<0&&/urssaf/.test(s)) return 'urssaf';
+  return null }
+function proOpsOf(k){ const m=months[k]; return ((m&&m.ops)||[]).filter(o=>isProAcc(srcOf(o))||(CAT[o.cat]&&CAT[o.cat].g==='pro')) }
+function proStats(keys){ const r={ca:0,achats:0,frais:0,urssaf:0,remun:0,enc:[]}; keys.forEach(k=>proOpsOf(k).forEach(o=>{ const a=+o.montant||0;
+    if(o.cat==='ca'&&a>0){r.ca+=a;r.enc.push(o)} else if(o.cat==='achats_pro') r.achats-=a; else if(o.cat==='frais_pro') r.frais-=a; else if(o.cat==='urssaf') r.urssaf-=a; else if(o.cat==='remuneration') r.remun-=a }));
+  r.cotis=r.ca*microRate(); r.marge=r.ca-r.achats-r.frais; r.net=r.marge-r.cotis; return r }
+const addMonths=(k,n)=>{ const [y,m]=k.split('-').map(Number); const d=new Date(y,m-1+n,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') };
+function declPeriod(k){ const m=microCfg(); if(m.decl==='trimestriel'){ const [y,mo]=k.split('-').map(Number), q0=Math.floor((mo-1)/3)*3+1; const keys=[0,1,2].map(i=>y+'-'+String(q0+i).padStart(2,'0')); const due=new Date(y,q0+3,0); return {keys,label:'T'+((q0-1)/3+1)+' '+y,due} }
+  const [y,mo]=k.split('-').map(Number); return {keys:[k],label:monthLabel(k),due:new Date(y,mo+1,0)} }
+function caGoalActual(o){ const d0=o.debut||'0000-00-00', d1=o.echeance||'9999-12-31'; let s=0; Object.values(months).forEach(m=>(m.ops||[]).forEach(x=>{ if(x.cat==='ca'&&x.montant>0&&x.date>=d0&&x.date<=d1) s+=+x.montant })); return s }
+function viewPro(){ const m=microCfg(), rate=microRate(), st=proStats([cur]), dp=declPeriod(cur), sp=proStats(dp.keys);
+  const y=cur.slice(0,4), yKeys=Array.from({length:12},(_,i)=>y+'-'+String(i+1).padStart(2,'0')), sy=proStats(yKeys);
+  const prev=[1,2,3].map(i=>addMonths(cur,-i)).filter(k=>months[k]), sl=prev.length?proStats(prev):null, lisse=sl?Math.max(0,Math.floor(sl.net/prev.length/10)*10):0;
+  const hist=Array.from({length:6},(_,i)=>addMonths(cur,i-5)).map(k=>({k,...proStats([k])})), mx=Math.max(1,...hist.map(h=>h.ca));
+  const pPl=Math.min(100,sy.ca/m.plafond*100), pTva=Math.min(100,sy.ca/m.tva*100);
+  const bar=(p,warn)=>`<div class="bar ${warn?'over':''}"><span style="width:${p}%"></span></div>`;
+  const enc=st.enc.slice().sort((a,b)=>a.date<b.date?1:-1);
+  return `<div style="display:flex;flex-direction:column;gap:20px">
+  <section class="kpis" aria-label="Activité du mois">
+    <div class="kpi"><div class="muted">Chiffre d'affaires · ${esc(shortMonth(cur))}</div><div class="big">${eur(st.ca)}</div><div class="sub">${st.enc.length} encaissement${st.enc.length>1?'s':''}</div></div>
+    <div class="kpi"><div class="muted">Marge (CA − achats − frais)</div><div class="big ${st.marge<0?'bad':''}">${eur(st.marge)}</div><div class="sub">Achats ${eur(st.achats)} · frais ${eur(st.frais)}</div></div>
+    <div class="kpi"><div class="muted">À mettre de côté pour l'URSSAF</div><div class="big bad">${eur(st.cotis)}</div><div class="sub">${(rate*100).toFixed(1).replace('.',',')} % du CA${m.vl?', impôt compris':''}</div></div>
+    <div class="kpi"><div class="muted">Ce qu'il te reste vraiment</div><div class="big ${st.net<0?'bad':'good'}">${eur(st.net)}</div><div class="sub">Après achats, frais et cotisations</div></div>
+  </section>
+  <div class="row">
+  <section class="card grow" aria-labelledby="h-res"><h2 id="h-res">Réserve URSSAF · ${esc(dp.label)}</h2>
+    <div class="sum" style="display:grid;grid-template-columns:1fr auto;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:14px"><span>Chiffre d'affaires de la période</span><strong class="num">${eur(sp.ca)}</strong><span>Cotisations à prévoir</span><strong class="num bad">${eur(sp.cotis)}</strong><span>Déclaration et paiement avant le</span><strong class="num">${dp.due.toLocaleDateString('fr-FR')}</strong></div>
+    <p class="muted" style="margin:0;font-size:14px">Les cotisations se calculent sur le chiffre d'affaires, pas sur ta marge : même si tu as racheté du stock, tu les dois. Mets-les de côté dès l'encaissement, idéalement sur un livret dédié.</p>
+    ${enc.length?`<div class="tablebox"><table><thead><tr><th>Encaissement</th><th class="r">Montant</th><th class="r">À mettre de côté</th></tr></thead><tbody>${enc.map(o=>`<tr><td>${o.date.slice(8,10)}/${o.date.slice(5,7)} · ${esc(String(o.libelle).slice(0,40))}</td><td class="r num">${eur(o.montant,2)}</td><td class="r num bad">${eur(o.montant*rate,2)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Aucun encaissement en ${esc(monthLabel(cur))}. Importe le relevé de ton compte pro, ou classe tes ventes en « Pro · Chiffre d'affaires encaissé ».</div>`}
+    <div class="editrow"><button class="btn ghost small" data-act="icsurssaf">Rappel de déclaration dans mon agenda</button><button class="btn ghost small" data-act="livre">Exporter le livre des recettes ${esc(y)}</button></div>
+  </section>
+  <section class="card side" aria-labelledby="h-lis"><h2 id="h-lis">Ton salaire lissé</h2>
+    ${sl?`<div class="big num" style="font-size:30px;font-weight:600">${eur(lisse)}<span class="muted" style="font-size:15px;font-weight:400"> / mois</span></div>
+    <p class="muted" style="margin:0;font-size:14px">C'est la moyenne de ce qu'il t'est vraiment resté sur ${prev.length} mois (${prev.map(k=>shortMonth(k)).join(', ')}), arrondie à la baisse. Verse-toi ce montant fixe chaque mois du compte pro vers ton compte perso : les bons mois remplissent un coussin, les mois creux puisent dedans.</p>
+    ${cfg.revenus?`<div class="${cfg.revenus>lisse?'bad':'good'}" style="font-size:14px">Ton budget perso est réglé sur ${eur(cfg.revenus)} : ${cfg.revenus>lisse?'c’est plus que ce que ton activité dégage en moyenne.':'ton activité le couvre.'}</div>`:''}
+    <div class="muted" style="font-size:13px">Garde l'équivalent de 2 à 3 mois de salaire sur le compte pro comme coussin, en plus de la réserve URSSAF.</div>
+    <div class="muted" style="font-size:13px">Versé ce mois-ci : <strong class="num">${eur(st.remun)}</strong></div>`:`<div class="empty">Il faut au moins un mois complet d'activité importé pour calculer ton salaire lissé.</div>`}
+  </section>
+  </div>
+  <div class="row">
+  <section class="card grow" aria-labelledby="h-ph"><h2 id="h-ph">6 derniers mois</h2>
+    <div class="legend"><span><i style="background:var(--muted)"></i>Chiffre d'affaires</span><span><i style="background:var(--accent)"></i>Reste réel</span></div>
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:end;height:170px">${hist.map(h=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${esc(monthLabel(h.k))} : CA ${eur(h.ca)}, reste ${eur(h.net)}"><div style="display:flex;gap:3px;align-items:flex-end;height:130px;width:100%;justify-content:center"><span style="width:40%;height:${Math.max(2,h.ca/mx*100)}%;background:var(--muted);border-radius:4px 4px 0 0"></span><span style="width:40%;height:${Math.max(2,Math.max(0,h.net)/mx*100)}%;background:var(--accent);border-radius:4px 4px 0 0"></span></div><span class="muted num" style="font-size:12px">${esc(shortMonth(h.k))}</span></div>`).join('')}</div>
+  </section>
+  <section class="card side" aria-labelledby="h-seu"><h2 id="h-seu">Seuils ${esc(y)}</h2>
+    <div class="catline"><div class="head"><span>Plafond micro-entreprise</span><span class="num">${eur(sy.ca)} / ${eur(m.plafond)}</span></div>${bar(pPl,pPl>=80)}</div>
+    <div class="catline"><div class="head"><span>Franchise de TVA</span><span class="num">${eur(sy.ca)} / ${eur(m.tva)}</span></div>${bar(pTva,pTva>=80)}</div>
+    ${pTva>=80?'<div class="bad" style="font-size:14px">Tu approches du seuil de TVA : renseigne-toi avant de le dépasser.</div>':''}
+    <div class="muted" style="font-size:13px">${esc(m.def.nom)} · seuils 2026, à vérifier chaque année sur autoentrepreneur.urssaf.fr. Réglages modifiables dans l'onglet Réglages.</div>
+  </section>
+  </div></div>` }
+function livreDownload(){ const y=cur.slice(0,4); const rows=[['Date','Libellé','Montant','Compte','Mode d\'encaissement']];
+  Object.keys(months).filter(k=>k.startsWith(y)).sort().forEach(k=>(months[k].ops||[]).filter(o=>o.cat==='ca'&&o.montant>0).sort((a,b)=>a.date<b.date?-1:1).forEach(o=>rows.push([o.date.split('-').reverse().join('/'),String(o.libelle).replace(/;/g,','),String(o.montant).replace('.',','),srcName(srcOf(o)),'Virement / carte'])));
+  const csv='﻿'+rows.map(r=>r.join(';')).join('\r\n'); const blob=new Blob([csv],{type:'text/csv'}), u=URL.createObjectURL(blob), l=document.createElement('a'); l.href=u; l.download='livre-des-recettes-'+y+'.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),3000);
+  toast((rows.length-1)+' encaissements exportés.') }
+function icsUrssaf(){ const pad=n=>String(n).padStart(2,'0'), quarter=microCfg().decl==='trimestriel'; const d=new Date(); let start=new Date(d.getFullYear(),d.getMonth(),20,19,0);
+  if(quarter){ while(start<d||[0,3,6,9].indexOf(start.getMonth())<0) start=new Date(start.getFullYear(),start.getMonth()+1,20,19,0) } else if(start<d) start=new Date(d.getFullYear(),d.getMonth()+1,20,19,0);
+  const f=x=>x.getFullYear()+pad(x.getMonth()+1)+pad(x.getDate())+'T'+pad(x.getHours())+pad(x.getMinutes())+'00', e=new Date(start.getTime()+15*60000), url=location.origin+location.pathname;
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Cockpit budget//FR','BEGIN:VEVENT','UID:cockpit-urssaf-'+Date.now()+'@cockpit','DTSTAMP:'+f(new Date()),'DTSTART:'+f(start),'DTEND:'+f(e),
+    quarter?'RRULE:FREQ=YEARLY;BYMONTH=1,4,7,10;BYMONTHDAY=20':'RRULE:FREQ=MONTHLY;BYMONTHDAY=20','SUMMARY:URSSAF : déclarer mon chiffre d\'affaires','DESCRIPTION:Déclare ton CA '+(quarter?'du trimestre':'du mois')+' sur autoentrepreneur.urssaf.fr. Le montant est dans ton cockpit : '+url,'URL:'+url,'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Déclaration URSSAF','TRIGGER:PT0M','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar'}), u=URL.createObjectURL(blob), l=document.createElement('a'); l.href=u; l.download='rappel-urssaf.ics'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),3000);
+  toast('Ouvre le fichier pour ajouter le rappel ('+(quarter?'chaque trimestre':'chaque mois')+', le 20 à 19 h).') }
+function viewMicroSettings(){ const m=microCfg();
+  return `<section class="card" aria-labelledby="h-mic"><h2 id="h-mic">Ta situation</h2>
+    <div class="acct"><label for="s-prof">Profil</label><select id="s-prof" data-act="cfgsel" data-k="profil"><option value="salarie" ${!isIndep()?'selected':''}>Salarié(e) / étudiant(e)</option><option value="independant" ${cfg.profil==='independant'?'selected':''}>Micro-entrepreneur</option><option value="mixte" ${cfg.profil==='mixte'?'selected':''}>Les deux</option></select></div>
+    ${isIndep()?`<div class="acct"><label for="s-act">Activité</label><select id="s-act" data-act="micro" data-k="activite">${Object.entries(MICRO).map(([k,v])=>`<option value="${k}" ${m.activite===k?'selected':''}>${esc(v.nom)}</option>`).join('')}</select></div>
+    <div class="acct"><label for="s-dec">Déclaration URSSAF</label><select id="s-dec" data-act="micro" data-k="decl"><option value="mensuel" ${m.decl==='mensuel'?'selected':''}>Mensuelle</option><option value="trimestriel" ${m.decl==='trimestriel'?'selected':''}>Trimestrielle</option></select></div>
+    <div class="acct"><label for="s-vl">Versement libératoire de l'impôt (${String(m.def.vl).replace('.',',')} %)</label><input type="checkbox" id="s-vl" style="width:20px;height:20px;min-height:0;accent-color:var(--accent)" data-act="micro" data-k="vl" ${m.vl?'checked':''}></div>
+    <div class="acct"><label for="s-tx">Taux de cotisations (%)</label><input class="amount" id="s-tx" inputmode="decimal" data-act="micro" data-k="taux" value="${String(m.taux).replace('.',',')}"></div>
+    <div class="muted" style="font-size:13px">Taux 2026 par défaut : ${String(m.def.taux).replace('.',',')} % de cotisations + ${String(m.def.cfp).replace('.',',')} % de formation professionnelle${m.vl?' + '+String(m.def.vl).replace('.',',')+' % d’impôt':''} = ${(microRate()*100).toFixed(1).replace('.',',')} % mis de côté sur chaque encaissement. Coche « Pro » sur ton compte professionnel dans Comptes.</div>`:'<div class="muted" style="font-size:13px">Choisis « Micro-entrepreneur » ou « Les deux » pour activer l’onglet Pro : réserve URSSAF, salaire lissé, seuils et livre des recettes.</div>'}
+  </section>` }
+
 /* ---------- import reminder ---------- */
 function lastImportInfo(){ let last=cfg&&cfg.lastImport?new Date(cfg.lastImport):null; let maxOp='';
   Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>{ if(o.date>maxOp) maxOp=o.date }));
@@ -454,19 +551,22 @@ function ensureAccounts(){ if(accChecked||!cfg) return; accChecked=true; cfg.com
 function needsWizard(){ if(forceWizard) return true; if(!cfg) return true; if(cfg.resetWizard) return true; return !cfg.onboarded&&!cfg.onboardSkipped&&!((cfg.comptes||[]).length) }
 const FIX_CATS=[['abos','Abonnements & téléphone'],['logement','Logement & assurances'],['transport','Voiture & transport'],['sport','Sport'],['papa','Remboursement de prêt ou dette'],['courses','Courses']];
 const FIX_PRESETS=[['Téléphone','abos'],['Streaming / musique','abos'],['Salle de sport','sport'],['Transport / essence','transport'],['Assurance','logement'],['Loyer ou participation','logement'],['Remboursement de prêt','papa'],['Courses','courses']];
-const ACC_PRESETS=[['Compte courant','courant'],['Revolut','courant'],['Livret A','epargne'],['Livret jeune','epargne'],['LDDS','epargne'],['LEP','epargne'],['PEA','epargne'],['Assurance-vie','epargne']];
+const ACC_PRESETS=[['Compte courant','courant'],['Compte pro','courant',true],['Revolut','courant'],['Livret A','epargne'],['Livret jeune','epargne'],['LDDS','epargne'],['LEP','epargne'],['PEA','epargne'],['Assurance-vie','epargne']];
 const isLivret=n=>/livret|ldds|lep\b|lddc/i.test(n||'');
 function initWz(){ const c=cfg||{}; const b=c.budgets||{};
   let fixes=(c.fixes||[]).map(x=>({...x}));
   if(!fixes.length) FIX_CATS.forEach(([id,nom])=>{ if(+b[id]>0) fixes.push({nom,montant:+b[id],cat:id}) });
   const comptes=(c.comptes&&c.comptes.length?c.comptes:[{id:uid(),nom:'Compte courant',type:'courant',montant:0,dispo:false}]).map(x=>({...x}));
-  return {step:0,nom:c.nomTitulaire||'',revenu:c.revenus?String(c.revenus):'',aides:'',jour:String(c.jourPaie||''),fixes,comptes,
+  const mc=c.micro||{};
+  return {step:0,profil:c.profil||'salarie',activite:mc.activite||'vente',decl:mc.decl||'mensuel',vl:!!mc.vl,caMoyen:mc.caMoyen?String(mc.caMoyen):'',achats:mc.achatsMoyens?String(mc.achatsMoyens):'',salaire:c.salaireFixe?String(c.salaireFixe):'',nom:c.nomTitulaire||'',revenu:c.revenus?String(c.revenus):'',aides:'',jour:String(c.jourPaie||''),fixes,comptes,
     plaisir:c.plaisirBudget?String(c.plaisirBudget):'',epargne:b.epargne?String(b.epargne):'',seuil:c.seuilSecurite?String(c.seuilSecurite):'',
-    obj:[{h:3,nom:'',cible:''},{h:6,nom:'',cible:''},{h:12,nom:'',cible:''}]} }
+    obj:[{h:3,nom:'',cible:'',type:'epargne'},{h:6,nom:'',cible:'',type:'epargne'},{h:12,nom:'',cible:'',type:'epargne'}]} }
 const wzN=v=>{const n=pNum(v);return isNaN(n)?0:n};
-function wzTotals(){ const rev=wzN(wz.revenu)+wzN(wz.aides), fix=wz.fixes.reduce((a,f)=>a+wzN(f.montant),0); return {rev,fix,reste:rev-fix} }
+const wzIndep=()=>wz&&(wz.profil==='independant'||wz.profil==='mixte');
+function wzTotals(){ const rev=wzN(wz.revenu)+wzN(wz.aides)+(wz.profil==='mixte'?wzN(wz.salaire):0), fix=wz.fixes.reduce((a,f)=>a+wzN(f.montant),0); return {rev,fix,reste:rev-fix} }
 function wzSuggest(){ const t=wzTotals(); const pl=Math.max(0,Math.round(Math.min(t.reste*0.6,t.rev*0.3)/10)*10); const ep=Math.max(0,Math.round(Math.max(t.rev*0.2,0)/10)*10); return {pl,ep:Math.min(ep,Math.max(0,t.reste-pl)),seuil:Math.round((t.fix+pl)*3/100)*100} }
 function wzInput(el){ const k=el.dataset.wz, arr=el.dataset.arr, i=+el.dataset.i;
+  if(!arr&&el.type==='checkbox'){ wz[k]=el.checked; return }
   if(arr){ const row=wz[arr][i]; if(!row) return; row[k]=el.type==='checkbox'?el.checked:el.value; if(arr==='comptes'&&k==='nom'&&row.type!=='courant') row.dispo=isLivret(el.value) } else wz[k]=el.value }
 const WZ_STEPS=7;
 function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
@@ -476,9 +576,23 @@ function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
   let body='';
   if(st===0) body=`<div class="eyebrow">Bienvenue</div><h2>On règle ton cockpit en 2 minutes</h2>
     <p class="lead">Quelques questions pour que tes chiffres, ton budget et tes objectifs soient vraiment les tiens. Tu pourras tout modifier ensuite.</p>
+    <div class="q"><label for="wz-prof">Ta situation</label><select id="wz-prof" data-wz="profil" style="max-width:320px"><option value="salarie" ${wz.profil==='salarie'?'selected':''}>Salarié(e), alternant(e) ou étudiant(e)</option><option value="independant" ${wz.profil==='independant'?'selected':''}>Micro-entrepreneur</option><option value="mixte" ${wz.profil==='mixte'?'selected':''}>Les deux : salarié(e) et micro-entrepreneur</option></select></div>
     <div class="q"><label for="wz-nom">Ton prénom et nom</label><input type="text" id="wz-nom" data-wz="nom" value="${esc(wz.nom)}" placeholder="Ex. Alex Martin" autocomplete="name"><span class="muted" style="font-size:13px">Il sert à reconnaître les virements entre tes propres comptes. Il n'est visible que par toi.</span></div>
     ${nav('wz-next','Commencer')}`;
-  if(st===1) body=`<div class="eyebrow">1 · Tes revenus</div><h2>Combien reçois-tu chaque mois ?</h2>
+  if(st===1&&wzIndep()){ const d=MICRO[wz.activite]||MICRO.vente, rate=(d.taux+d.cfp+(wz.vl?d.vl:0))/100, ca=wzN(wz.caMoyen), ach=wzN(wz.achats), sug=Math.max(0,Math.floor((ca-ach-ca*rate)*0.8/10)*10);
+    body=`<div class="eyebrow">1 · Ton activité et tes revenus</div><h2>Comment fonctionne ta micro-entreprise ?</h2>
+    <div class="q"><label for="wz-act">Ton activité</label><select id="wz-act" data-wz="activite" style="max-width:340px">${Object.entries(MICRO).map(([k,v])=>`<option value="${k}" ${wz.activite===k?'selected':''}>${esc(v.nom)}</option>`).join('')}</select><span class="muted" style="font-size:13px">Cotisations 2026 : ${String(d.taux).replace('.',',')} % du chiffre d'affaires, plafond ${eur(d.plafond)} par an.</span></div>
+    <div class="q"><label for="wz-dec">Tu déclares ton chiffre d'affaires…</label><select id="wz-dec" data-wz="decl" style="max-width:240px"><option value="mensuel" ${wz.decl==='mensuel'?'selected':''}>Chaque mois</option><option value="trimestriel" ${wz.decl==='trimestriel'?'selected':''}>Chaque trimestre</option></select></div>
+    <div class="q"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="wz-vl" data-wz="vl" style="width:20px;height:20px;min-height:0;accent-color:var(--accent)" ${wz.vl?'checked':''}>J'ai choisi le versement libératoire de l'impôt (+${String(d.vl).replace('.',',')} %)</label></div>
+    <div class="q"><label for="wz-ca">Chiffre d'affaires moyen par mois, à peu près (€)</label><input class="amount" style="width:160px" id="wz-ca" data-wz="caMoyen" inputmode="decimal" value="${esc(wz.caMoyen)}" placeholder="1 500"></div>
+    <div class="q"><label for="wz-ach">Achats moyens par mois : stock, frais… (€)</label><input class="amount" style="width:160px" id="wz-ach" data-wz="achats" inputmode="decimal" value="${esc(wz.achats)}" placeholder="600"></div>
+    ${wz.profil==='mixte'?`<div class="q"><label for="wz-sal">Ton salaire net mensuel (€)</label><input class="amount" style="width:160px" id="wz-sal" data-wz="salaire" inputmode="decimal" value="${esc(wz.salaire)}" placeholder="1 200"></div>`:''}
+    <div class="q"><label for="wz-rev">Combien veux-tu te verser chaque mois depuis ton activité pour vivre ? (€)</label><input class="amount" style="width:160px" id="wz-rev" data-wz="revenu" inputmode="decimal" value="${esc(wz.revenu)}" placeholder="${sug||''}"><span class="muted" style="font-size:13px">${ca?`Sur ${eur(ca)} de CA, après ${eur(ach)} d'achats et ${eur(ca*rate)} de cotisations, il te reste environ ${eur(ca-ach-ca*rate)}. Je te conseille de te verser au plus 80 % de ce reste (${eur(sug)}) : le reste forme un coussin pour les mois creux.`:'Renseigne ton CA et tes achats pour avoir une suggestion.'}</span></div>
+    <div class="q"><label for="wz-aides">Autres revenus réguliers : aides, bourse, APL… (€)</label><input class="amount" style="width:160px" id="wz-aides" data-wz="aides" inputmode="decimal" value="${esc(wz.aides)}" placeholder="0"></div>
+    <div class="q"><label for="wz-jour">Quel jour du mois te verses-tu ce revenu ?</label><input class="amount" style="width:100px" type="number" min="1" max="31" id="wz-jour" data-wz="jour" value="${esc(wz.jour)}" placeholder="5"></div>
+    <div class="sum"><span>Revenu perso par mois</span><strong class="num" data-live="rev">${eur(t.rev)}</strong></div>
+    ${nav()}` }
+  else if(st===1) body=`<div class="eyebrow">1 · Tes revenus</div><h2>Combien reçois-tu chaque mois ?</h2>
     <div class="q"><label for="wz-rev">Salaire net mensuel (€)</label><input class="amount" style="width:160px" id="wz-rev" data-wz="revenu" inputmode="decimal" value="${esc(wz.revenu)}" placeholder="1 200"></div>
     <div class="q"><label for="wz-aides">Autres revenus réguliers : aides, bourse, APL… (€)</label><input class="amount" style="width:160px" id="wz-aides" data-wz="aides" inputmode="decimal" value="${esc(wz.aides)}" placeholder="0"></div>
     <div class="q"><label for="wz-jour">Quel jour du mois reçois-tu ton salaire ?</label><input class="amount" style="width:100px" type="number" min="1" max="31" id="wz-jour" data-wz="jour" value="${esc(wz.jour)}" placeholder="27"></div>
@@ -492,9 +606,9 @@ function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
     ${nav()}`;
   if(st===3) body=`<div class="eyebrow">3 · Tes comptes</div><h2>Où est ton argent ?</h2>
     <p class="lead">Ajoute chaque banque et chaque livret, avec son solde actuel. Tu peux les renommer comme tu veux (Boursorama, Crédit Agricole…).</p>
-    <div class="chips">${ACC_PRESETS.map(([n],i)=>`<button class="chip" data-act="wz-addacc" data-i="${i}">+ ${esc(n)}</button>`).join('')}<button class="chip" data-act="wz-addacc" data-i="-1">+ Autre</button></div>
-    ${wz.comptes.map((c,i)=>`<div class="editrow"><label for="wc-n-${i}" hidden>Nom</label><input type="text" id="wc-n-${i}" data-wz="nom" data-arr="comptes" data-i="${i}" value="${esc(c.nom)}"><label for="wc-t-${i}" hidden>Type</label><select id="wc-t-${i}" data-wz="type" data-arr="comptes" data-i="${i}"><option value="courant" ${c.type==='courant'?'selected':''}>Compte courant</option><option value="epargne" ${c.type!=='courant'?'selected':''}>Épargne / placement</option></select><label for="wc-m-${i}" hidden>Solde</label><input class="amount" id="wc-m-${i}" data-wz="montant" data-arr="comptes" data-i="${i}" inputmode="decimal" value="${esc(c.montant||'')}" placeholder="Solde €"><button class="iconbtn" data-act="wz-del" data-arr="comptes" data-i="${i}" aria-label="Retirer ${esc(c.nom)}">✕</button></div>`).join('')}
-    <span class="muted" style="font-size:13px">« Compte courant » : ses dépenses comptent dans ton budget. « Épargne » : livrets et placements, suivis à part.</span>
+    <div class="chips">${ACC_PRESETS.map(([n,t,pr],i)=>pr&&!wzIndep()?'':`<button class="chip" data-act="wz-addacc" data-i="${i}">+ ${esc(n)}</button>`).join('')}<button class="chip" data-act="wz-addacc" data-i="-1">+ Autre</button></div>
+    ${wz.comptes.map((c,i)=>`<div class="editrow"><label for="wc-n-${i}" hidden>Nom</label><input type="text" id="wc-n-${i}" data-wz="nom" data-arr="comptes" data-i="${i}" value="${esc(c.nom)}"><label for="wc-t-${i}" hidden>Type</label><select id="wc-t-${i}" data-wz="type" data-arr="comptes" data-i="${i}"><option value="courant" ${c.type==='courant'?'selected':''}>Compte courant</option><option value="epargne" ${c.type!=='courant'?'selected':''}>Épargne / placement</option></select>${wzIndep()&&c.type==='courant'?`<label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="wc-p-${i}" data-wz="pro" data-arr="comptes" data-i="${i}" style="min-height:0;width:18px;height:18px;accent-color:var(--accent)" ${c.pro?'checked':''}>Pro</label>`:''}<label for="wc-m-${i}" hidden>Solde</label><input class="amount" id="wc-m-${i}" data-wz="montant" data-arr="comptes" data-i="${i}" inputmode="decimal" value="${esc(c.montant||'')}" placeholder="Solde €"><button class="iconbtn" data-act="wz-del" data-arr="comptes" data-i="${i}" aria-label="Retirer ${esc(c.nom)}">✕</button></div>`).join('')}
+    <span class="muted" style="font-size:13px">« Compte courant » : ses dépenses comptent dans ton budget. « Épargne » : livrets et placements, suivis à part.${wzIndep()?' Coche « Pro » sur le compte de ton activité : ses opérations sont suivies dans l’onglet Pro, pas dans ton budget perso.':''}</span>
     ${nav()}`;
   if(st===4) body=`<div class="eyebrow">4 · Ton budget</div><h2>Combien pour te faire plaisir, combien de côté ?</h2>
     <div class="sum"><span>Revenus</span><strong class="num">${eur(t.rev)}</strong><span>Charges fixes</span><strong class="num">− ${eur(t.fix)}</strong><span>Disponible</span><strong class="num">${eur(t.reste)}</strong></div>
@@ -505,8 +619,8 @@ function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
     ${(()=>{const pl=wz.plaisir===''?sg.pl:wzN(wz.plaisir), ep=wz.epargne===''?sg.ep:wzN(wz.epargne), r=t.reste-pl-ep; return `<div class="sum"><span>Reste pour les courses et imprévus</span><strong class="num" data-live="r4">${eur(r)}</strong></div><div class="bad" style="font-size:14px" data-live="r4warn" ${r<0?'':'hidden'}>Ton plan dépasse tes revenus : baisse le plaisir ou l’épargne.</div>`})()}
     ${nav()}`;
   if(st===5) body=`<div class="eyebrow">5 · Tes objectifs</div><h2>Qu'est-ce que tu veux avoir atteint ?</h2>
-    <p class="lead">Un objectif par horizon, avec un montant. Laisse vide si tu n'en as pas.</p>
-    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="card" style="background:var(--sunk);padding:16px;gap:8px"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €"></div>${per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> à mettre de côté par mois.</span>`:''}</div>`}).join('')}
+    <p class="lead">Un objectif par horizon, avec un montant. Laisse vide si tu n'en as pas.${wzIndep()?' Pour ton activité, choisis « Chiffre d’affaires » : il sera suivi automatiquement avec tes encaissements.':''}</p>
+    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="card" style="background:var(--sunk);padding:16px;gap:8px"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €">${wzIndep()?`<label for="wo-t-${i}" hidden>Type</label><select id="wo-t-${i}" data-wz="type" data-arr="obj" data-i="${i}"><option value="epargne" ${o.type!=='ca'?'selected':''}>Épargne</option><option value="ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires</option></select>`:''}</div>${per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> ${o.type==='ca'?'de chiffre d’affaires à faire':'à mettre de côté'} par mois.</span>`:''}</div>`}).join('')}
     ${nav('wz-finish','Terminer')}`;
   if(st===6) body=`<div class="eyebrow">C'est prêt</div><h2>Ton cockpit est réglé${wz.nom?', '+esc(wz.nom.split(' ')[0]):''}</h2>
     <p class="lead">Dernière étape, la plus utile : importe le relevé de ta banque. En quelques secondes, tu verras où part vraiment ton argent, catégorie par catégorie.</p>
@@ -518,7 +632,7 @@ function wzAction(a,t){
   if(a==='wz-next'){ wz.step=Math.min(WZ_STEPS-1,wz.step+1) }
   else if(a==='wz-prev'){ wz.step=Math.max(0,wz.step-1) }
   else if(a==='wz-addfix'){ const p=FIX_PRESETS[+t.dataset.i]; wz.fixes.push({nom:p?p[0]:'',montant:'',cat:p?p[1]:'abos'}); render(); const ins=document.querySelectorAll('[data-arr="fixes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
-  else if(a==='wz-addacc'){ const p=ACC_PRESETS[+t.dataset.i]; wz.comptes.push({id:uid(),nom:p?p[0]:'',type:p?p[1]:'courant',montant:'',dispo:p?isLivret(p[0]):false}); render(); const ins=document.querySelectorAll('[data-arr="comptes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
+  else if(a==='wz-addacc'){ const p=ACC_PRESETS[+t.dataset.i]; wz.comptes.push({id:uid(),nom:p?p[0]:'',type:p?p[1]:'courant',pro:!!(p&&p[2]),montant:'',dispo:p?isLivret(p[0]):false}); render(); const ins=document.querySelectorAll('[data-arr="comptes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
   else if(a==='wz-del'){ wz[t.dataset.arr].splice(+t.dataset.i,1) }
   else if(a==='wz-skip'){ if(!cfg) cfg=defaultCfg(); cfg.onboardSkipped=true; delete cfg.resetWizard; saveCfg(); wz=null; forceWizard=false; tab='dash' }
   else if(a==='wz-cancel'){ wz=null; forceWizard=false }
@@ -528,17 +642,17 @@ function wzAction(a,t){
   render(); window.scrollTo({top:0});
 }
 function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg();
-  cfg.nomTitulaire=wz.nom.trim(); cfg.revenus=t.rev; const j=Math.round(wzN(wz.jour)); if(j>=1&&j<=31) cfg.jourPaie=j;
+  cfg.nomTitulaire=wz.nom.trim(); cfg.revenus=t.rev; cfg.profil=wz.profil; if(wzIndep()){ cfg.micro={...(cfg.micro||{}),activite:wz.activite,decl:wz.decl,vl:!!wz.vl,caMoyen:wzN(wz.caMoyen),achatsMoyens:wzN(wz.achats)}; if(cfg.micro.taux!=null&&MICRO[wz.activite]&&cfg.micro.activite!==wz.activite) delete cfg.micro.taux } if(wz.profil==='mixte') cfg.salaireFixe=wzN(wz.salaire); const j=Math.round(wzN(wz.jour)); if(j>=1&&j<=31) cfg.jourPaie=j;
   cfg.fixes=wz.fixes.filter(f=>f.nom||wzN(f.montant)).map(f=>({nom:f.nom||'Charge',montant:wzN(f.montant),cat:f.cat}));
   const b={...(cfg.budgets||{})}; FIX_CATS.forEach(([id])=>{ delete b[id] }); cfg.fixes.forEach(f=>{ b[f.cat]=(b[f.cat]||0)+f.montant });
   b.epargne=wz.epargne===''?sg.ep:wzN(wz.epargne); cfg.budgets=b;
   cfg.plaisirBudget=wz.plaisir===''?sg.pl:wzN(wz.plaisir); cfg.seuilSecurite=wz.seuil===''?sg.seuil:wzN(wz.seuil);
-  let comptes=wz.comptes.filter(c=>String(c.nom).trim()).map(c=>({...c,nom:String(c.nom).trim(),montant:wzN(c.montant),type:c.type==='courant'?'courant':'epargne',dispo:c.type==='courant'?false:(c.dispo||isLivret(c.nom))}));
+  let comptes=wz.comptes.filter(c=>String(c.nom).trim()).map(c=>({...c,nom:String(c.nom).trim(),montant:wzN(c.montant),type:c.type==='courant'?'courant':'epargne',pro:c.type==='courant'&&wzIndep()&&!!c.pro,dispo:c.type==='courant'?false:(c.dispo||isLivret(c.nom))}));
   if(!comptes.some(isCourant)) comptes.unshift({id:uid(),nom:'Compte courant',type:'courant',montant:0,dispo:false});
   cfg.comptes=comptes;
   const today=new Date(); cfg.objectifs=cfg.objectifs||[];
   wz.obj.forEach(o=>{ if(!o.nom.trim()&&!wzN(o.cible)) return; const d=new Date(today.getFullYear(),today.getMonth()+o.h,today.getDate());
-    cfg.objectifs.push({id:uid(),nom:o.nom.trim()||('Objectif à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:''}) });
+    const ca=o.type==='ca'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||((ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:'',...(ca?{type:'ca',debut:ymd(today)}:{})}) });
   if(!(cfg.virements||[]).length&&b.epargne>0){ const e=comptes.find(c=>!isCourant(c)); cfg.virements=[{nom:'Épargne'+(e?' · '+e.nom:''),montant:b.epargne}] }
   cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
@@ -563,7 +677,8 @@ function render(){
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
   ensureAccounts();
-  $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): viewSet();
+  document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
+  $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
 }
 
@@ -624,7 +739,7 @@ function budgetLines(s,compact){
   const lines=[];
   lines.push({nom:'Épargne & investissement',val:s.epargne,bud:Number(b.epargne)||0,inverse:true});
   lines.push({nom:'Enveloppe plaisir',val:s.plaisir,bud:pb});
-  CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne'&&c.id!=='epargne').forEach(c=>{ if((b[c.id]||0)>0||s.by[c.id]>0) lines.push({nom:c.nom,val:s.by[c.id],bud:Number(b[c.id])||0}) });
+  CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne'&&c.g!=='pro'&&c.id!=='epargne').forEach(c=>{ if((b[c.id]||0)>0||s.by[c.id]>0) lines.push({nom:c.nom,val:s.by[c.id],bud:Number(b[c.id])||0}) });
   return lines.map(l=>{ const over=l.inverse?false:l.bud>0&&l.val>l.bud; const short=l.inverse&&l.bud>0&&l.val<l.bud;
     const p=l.bud>0?Math.min(100,l.val/l.bud*100):(l.val>0?100:0);
     return `<div class="catline"><div class="head"><span>${esc(l.nom)}</span><span class="num ${over?'bad':''}">${eur(l.val)}${l.bud?` / ${eur(l.bud)}`:' · sans budget'}</span></div><div class="bar ${over||(!l.bud&&l.val>0&&!l.inverse)?'over':''}"><span style="width:${p}%"></span></div>${short&&!compact?`<div class="muted" style="font-size:13px">Il manque ${eur(l.bud-l.val)} d'épargne ce mois-ci.</div>`:''}</div>` }).join('');
@@ -659,7 +774,7 @@ function viewRel(){
   const savName=isSav?((cfg.comptes||[]).find(c=>c.id===relSrc)||{}).nom:'';
   const srcCount=k=>m.ops.filter(o=>srcOf(o)===k).length;
   const filterSel=`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-src">Compte affiché</label><select id="rel-src"><option value="all" ${relSrc==='all'?'selected':''}>Dépenses : tous les comptes (${m.ops.length})</option>${curs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)} (${srcCount(c.id)})</option>`).join('')}${savAccs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>`;
-  const opts=sel=>CATS.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nom)}</option>`).join('');
+  const opts=sel=>CATS.filter(c=>c.g!=='pro'||isIndep()||c.id===sel).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nom)}</option>`).join('');
   const lockedNote=m.cloture?`<div class="locked">Mois clôturé. Bilan figé.</div>`:'';
   return `<div style="display:flex;flex-direction:column;gap:20px">
   <section class="card" aria-labelledby="h-imp">
@@ -720,6 +835,7 @@ function viewRel(){
 function viewSet(){
   const b=cfg.budgets||{};
   return `<div style="display:flex;flex-direction:column;gap:20px">
+  ${viewMicroSettings()}
   <div class="settings-grid">
   <section class="card" aria-labelledby="h-gen"><h2 id="h-gen">Revenus et enveloppes</h2>
     <div class="acct"><label for="s-nom">Ton prénom et nom</label><input type="text" id="s-nom" style="max-width:200px" data-act="cfgtxt" data-k="nomTitulaire" value="${esc(cfg.nomTitulaire||'')}" placeholder="Ex. Alex Martin"></div>
@@ -730,7 +846,7 @@ function viewSet(){
     <div class="muted" style="font-size:13px">Ton nom sert à reconnaître les virements entre tes propres comptes. La date de salaire sert au compte à rebours, au rituel des virements et au calcul « par paie » des objectifs. Les opérations restent rangées par mois du calendrier. L'enveloppe plaisir regroupe sorties, couple, shopping, voyages et imprévus.</div>
   </section>
   <section class="card" aria-labelledby="h-bud"><h2 id="h-bud">Budgets par poste</h2>
-    ${CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne').map(c=>`<div class="acct"><label for="b-${c.id}">${esc(c.nom)}${c.id==='epargne'?' (cible)':''}</label><input class="amount" id="b-${c.id}" inputmode="decimal" data-act="bud" data-k="${c.id}" value="${b[c.id]??''}" placeholder="—"></div>`).join('')}
+    ${CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne'&&c.g!=='pro').map(c=>`<div class="acct"><label for="b-${c.id}">${esc(c.nom)}${c.id==='epargne'?' (cible)':''}</label><input class="amount" id="b-${c.id}" inputmode="decimal" data-act="bud" data-k="${c.id}" value="${b[c.id]??''}" placeholder="—"></div>`).join('')}
   </section>
   </div>
   <section class="card" aria-labelledby="h-virs"><h2 id="h-virs">Virements du jour de paie</h2>
@@ -739,7 +855,7 @@ function viewSet(){
   </section>
   <section class="card" aria-labelledby="h-acc"><h2 id="h-acc">Comptes</h2>
     <div class="muted" style="font-size:13px">Clique sur un nom pour le renommer. « Compte courant » : ses dépenses comptent dans ton budget (banque, Revolut…). « Épargne » : livrets et placements, suivis à part.</div>
-    ${(cfg.comptes||[]).map(c=>`<div class="editrow"><label for="c-n-${c.id}" hidden>Nom du compte</label><input type="text" id="c-n-${c.id}" value="${esc(c.nom)}" data-act="accset" data-id="${c.id}" data-k="nom"><label for="c-t-${c.id}" hidden>Type</label><select id="c-t-${c.id}" data-act="accset" data-id="${c.id}" data-k="type"><option value="courant" ${isCourant(c)?'selected':''}>Compte courant</option><option value="epargne" ${isCourant(c)?'':'selected'}>Épargne / placement</option></select><label for="c-m-${c.id}" hidden>Solde</label><input class="amount" id="c-m-${c.id}" inputmode="decimal" value="${c.montant}" data-act="accset" data-id="${c.id}" data-k="montant"><label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="c-d-${c.id}" style="min-height:0;width:18px;height:18px;accent-color:var(--accent)" data-act="accset" data-id="${c.id}" data-k="dispo" ${c.dispo?'checked':''}>Disponible</label>${accHist[c.id]&&(accHist[c.id].ops||[]).length?`<button class="btn ghost small" data-act="histclear" data-id="${c.id}">Effacer l'historique (${accHist[c.id].ops.length})</button>`:''}<button class="iconbtn" data-act="accdel" data-id="${c.id}" aria-label="Supprimer ${esc(c.nom)}">✕</button></div>`).join('')}
+    ${(cfg.comptes||[]).map(c=>`<div class="editrow"><label for="c-n-${c.id}" hidden>Nom du compte</label><input type="text" id="c-n-${c.id}" value="${esc(c.nom)}" data-act="accset" data-id="${c.id}" data-k="nom"><label for="c-t-${c.id}" hidden>Type</label><select id="c-t-${c.id}" data-act="accset" data-id="${c.id}" data-k="type"><option value="courant" ${isCourant(c)?'selected':''}>Compte courant</option><option value="epargne" ${isCourant(c)?'':'selected'}>Épargne / placement</option></select>${isIndep()&&isCourant(c)?`<label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="c-p-${c.id}" style="min-height:0;width:18px;height:18px;accent-color:var(--accent)" data-act="accset" data-id="${c.id}" data-k="pro" ${c.pro?'checked':''}>Pro</label>`:''}<label for="c-m-${c.id}" hidden>Solde</label><input class="amount" id="c-m-${c.id}" inputmode="decimal" value="${c.montant}" data-act="accset" data-id="${c.id}" data-k="montant"><label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="c-d-${c.id}" style="min-height:0;width:18px;height:18px;accent-color:var(--accent)" data-act="accset" data-id="${c.id}" data-k="dispo" ${c.dispo?'checked':''}>Disponible</label>${accHist[c.id]&&(accHist[c.id].ops||[]).length?`<button class="btn ghost small" data-act="histclear" data-id="${c.id}">Effacer l'historique (${accHist[c.id].ops.length})</button>`:''}<button class="iconbtn" data-act="accdel" data-id="${c.id}" aria-label="Supprimer ${esc(c.nom)}">✕</button></div>`).join('')}
     <div class="editrow"><button class="btn ghost small" data-act="accadd" data-type="courant">Ajouter une banque</button><button class="btn ghost small" data-act="accadd" data-type="epargne">Ajouter un livret ou placement</button></div>
     <div class="muted" style="font-size:13px">« Disponible » = argent mobilisable tout de suite (livrets). Il compte dans ton matelas de sécurité.</div>
   </section>
@@ -748,8 +864,8 @@ function viewSet(){
       <div class="f" style="display:flex;flex-direction:column;gap:4px;flex:1 1 180px"><label class="lbl" for="o-n-${o.id}">Objectif</label><input type="text" id="o-n-${o.id}" value="${esc(o.nom)}" data-act="goal" data-id="${o.id}" data-k="nom"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-c-${o.id}">Cible</label><input class="amount" id="o-c-${o.id}" inputmode="decimal" value="${o.cible}" data-act="goal" data-id="${o.id}" data-k="cible"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-e-${o.id}">Échéance</label><input type="date" id="o-e-${o.id}" value="${o.echeance||''}" data-act="goal" data-id="${o.id}" data-k="echeance"></div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}</select></div>
-      ${o.compteId?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
+      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${o.type!=='ca'&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé</option>`:''}</select></div>
+      ${o.compteId||o.type==='ca'?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
       <button class="iconbtn" data-act="goaldel" data-id="${o.id}" aria-label="Supprimer ${esc(o.nom)}" style="align-self:flex-end">✕</button></div>`).join('')}
     <button class="btn ghost small" data-act="goaladd" style="align-self:flex-start">Ajouter un objectif</button>
   </section>
@@ -785,6 +901,8 @@ document.addEventListener('click',e=>{
   else if(a==='virdel'){cfg.virements.splice(+t.dataset.i,1);saveCfg();render()}
   else if(a==='accadd'){const ty=t.dataset.type||'epargne';(cfg.comptes=cfg.comptes||[]).push({id:uid(),nom:ty==='courant'?'Nouvelle banque':'Nouveau livret',type:ty,montant:0,dispo:false});saveCfg();render();const ins=document.querySelectorAll('[data-act="accset"][data-k="nom"]');if(ins.length){ins[ins.length-1].focus();ins[ins.length-1].select()}}
   else if(a==='icsadd'){icsDownload()}
+  else if(a==='icsurssaf'){icsUrssaf()}
+  else if(a==='livre'){livreDownload()}
   else if(a==='aboignore'){(cfg.aboIgnore=cfg.aboIgnore||[]).push(t.dataset.k);saveCfg();render();toast('Masqué de la liste des abonnements.')}
   else if(a==='aboreset'){cfg.aboIgnore=[];saveCfg();render()}
   else if(a==='wizard'){forceWizard=true;wz=null;render();window.scrollTo({top:0})}
@@ -807,14 +925,16 @@ document.addEventListener('change',e=>{
   else if(a==='note'){const m=getMonth(cur);m.note=t.value;saveMonth(cur)}
   else if(a==='cfg'){cfg[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='aboname'){(cfg.aboNames=cfg.aboNames||{})[t.dataset.k]=t.value.trim();saveCfg()}
+  else if(a==='cfgsel'){cfg[t.dataset.k]=t.value;saveCfg();render()}
+  else if(a==='micro'){cfg.micro=cfg.micro||{};const k=t.dataset.k;cfg.micro[k]=k==='vl'?t.checked:k==='taux'?num(t.value):t.value;if(k==='activite')delete cfg.micro.taux;saveCfg();render()}
   else if(a==='cfgtxt'){cfg[t.dataset.k]=t.value.trim();saveCfg()}
   else if(a==='bud'){(cfg.budgets=cfg.budgets||{})[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='virset'){const v=cfg.virements[+t.dataset.i];v[t.dataset.k]=t.dataset.k==='montant'?num(t.value):t.value;saveCfg();render()}
-  else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;c[k]=k==='dispo'?t.checked:k==='montant'?num(t.value):t.value;saveCfg();render()}
-  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value;saveCfg();render()}
+  else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;c[k]=(k==='dispo'||k==='pro')?t.checked:k==='montant'?num(t.value):t.value;saveCfg();render()}
+  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||ymd(new Date())}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
-document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT') render(); else wzLive() } });
+document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
 document.addEventListener('submit',e=>{
   if(e.target.id!=='addform') return; e.preventDefault();
   const d=document.getElementById('a-date').value, l=document.getElementById('a-lib').value.trim(), mt=Math.abs(num(document.getElementById('a-mt').value)), c=document.getElementById('a-cat').value, sr=(document.getElementById('a-src')||{}).value||(courants()[0]||{}).id||'cic';
