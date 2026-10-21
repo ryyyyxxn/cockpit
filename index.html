@@ -267,7 +267,14 @@ function getMonth(k){ if(!months[k]) months[k]={mois:k,ops:[],note:'',cloture:fa
 /* ---------- computations ---------- */
 function daysLeft(k){const b=periodBounds(k);const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());if(t<b.start||t>b.end)return 0;return Math.round((b.end-t)/864e5)+1}
 function compteVal(id){const c=(cfg.comptes||[]).find(x=>x.id===id);return c?Number(c.montant)||0:0}
-function goalActual(o){return o.type==='ca'?caGoalActual(o):o.compteId==='__all'?(cfg.comptes||[]).filter(c=>!isCourant(c)).reduce((a,c)=>a+(+c.montant||0),0):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
+const PLAF=[[/livret ?a\b|livret bleu/,22950],[/ldds|lddc|developpement durable/,12000],[/\blep\b|epargne populaire/,10000],[/livret ?jeune/,1600]];
+function plafondOf(c){ if(+c.plafond) return +c.plafond; const n=deacc(c.nom); const x=PLAF.find(r=>r[0].test(n)); return x?x[1]:0 }
+const isFull=c=>{ const p=plafondOf(c); return p>0&&(+c.montant||0)>=p-1 };
+function benefStats(o){ const c=+o.cible||0, cur0=proStats([cur]).net;
+  const prev=[1,2,3,4,5,6].map(i=>addMonths(cur,-i)).filter(k=>months[k]&&proOpsOf(k).length), nets=prev.map(k=>proStats([k]).net);
+  const avg3=nets.slice(0,3).length?nets.slice(0,3).reduce((a,b)=>a+b,0)/nets.slice(0,3).length:null;
+  return {net:cur0,avg3,hits:nets.filter(v=>v>=c).length,n:nets.length} }
+function goalActual(o){return o.type==='benef'?proStats([cur]).net:o.type==='ca'?caGoalActual(o):o.compteId==='__all'?(cfg.comptes||[]).filter(c=>!isCourant(c)).reduce((a,c)=>a+(+c.montant||0),0):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
 function paiesAvant(ech){ if(!ech) return 0; const end=new Date(ech+'T23:59:59'); let n=0; let y=now.getFullYear(),mo=now.getMonth(); const t=new Date(now.getFullYear(),now.getMonth(),now.getDate()); if(payDate(y,mo)<t) mo++; while(payDate(y,mo)<=end && n<240){n++; mo++} return n }
 function stats(k){
   const m=months[k]; const ops=m?m.ops:[];
@@ -397,7 +404,23 @@ function migrate(){ if(migrated||!db) return; migrated=true; const touched=new S
   touched.forEach(saveMonth); }
 function objMigrate(){ if(!db||!cfg||cfg.objMigr1) return; const hasEp=(cfg.comptes||[]).some(c=>!isCourant(c));
   (cfg.objectifs||[]).forEach(o=>{ if(o.type==='ca'&&o.debut) o.debut=o.debut.slice(0,8)+'01'; else if(!o.compteId&&!(+o.actuel)&&hasEp) o.compteId='__all' }); cfg.objMigr1=true; saveCfg() }
+function objMigrate2(){ if(!db||!cfg||cfg.objMigr2) return; (cfg.objectifs||[]).forEach(o=>{ if(o.type==='ca'&&/b[ée]n[ée]f|marge/i.test(o.nom||'')){ o.type='benef'; delete o.debut } }); cfg.objMigr2=true; saveCfg() }
 function revMigrate(){ if(!db||!cfg||cfg.revMigr1) return; const touched=new Set(); Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(+o.montant>0&&(!CAT[o.cat]||isSpendG(g))&&!isProAcc(srcOf(o))){ o.cat='revenu'; touched.add(k) } }) }); cfg.revMigr1=true; saveCfg(); touched.forEach(saveMonth) }
+/* ---------- où placer ---------- */
+function viewPlacer(){ const cs=cfg.comptes||[], full=cs.filter(isFull); if(!full.length) return '';
+  const has=re=>cs.find(c=>re.test(deacc(c.nom))), room=c=>Math.max(0,plafondOf(c)-(+c.montant||0));
+  const ldds=has(/ldds|lddc|developpement durable/), lep=has(/\blep\b|epargne populaire/), L=[];
+  if(!ldds) L.push(['LDDS','Même taux et même fiscalité que le Livret A (intérêts sans impôt), argent dispo à tout moment, plafond 12 000 €. Tu n’en as pas : ouvre-le dans ta banque, c’est gratuit.']);
+  else if(!isFull(ldds)) L.push(['Ton LDDS',`Encore ${eur(room(ldds))} de place. Même taux que le Livret A, dispo à tout moment.`]);
+  if(!lep) L.push(['LEP','Le livret réglementé le mieux payé, plafond 10 000 €, mais réservé aux revenus modestes. Demande à ta banque si tu y as droit avec ton dernier avis d’impôt.']);
+  else if(!isFull(lep)) L.push(['Ton LEP',`Encore ${eur(room(lep))} de place. C’est ton livret le mieux rémunéré : remplis-le en premier.`]);
+  if(isIndep()) L.push(['Ta réserve URSSAF','Laisse-la sur un livret ou sur ton compte pro. Ne l’investis jamais : elle doit être là le jour de la déclaration.']);
+  L.push(['Projet dans 1 à 3 ans','Voiture, apport, gros achat : reste sans risque, avec un compte à terme ou le fonds en euros d’une assurance-vie sans frais d’entrée.']);
+  L.push(['Argent bloqué 5 ans ou plus','PEA investi en ETF (impôt allégé au bout de 5 ans) ou assurance-vie en ligne à frais bas. Ça monte et ça descend : n’y mets que ce dont tu n’auras pas besoin.']);
+  return `<section class="card" aria-labelledby="h-plc" style="background:var(--warn-bg)">${ht('h2','plc',full.map(c=>esc(c.nom)).join(' et ')+(full.length>1?' sont pleins':' est plein')+' : où mettre la suite ?')}
+    ${ip('plc','Un livret réglementé a un plafond (Livret A 22 950 €, LDDS 12 000 €, LEP 10 000 €, Livret jeune 1 600 €). Une fois atteint, tu ne peux plus y verser, seuls les intérêts continuent d’y tomber. Le plafond est reconnu grâce au nom du compte.')}
+    <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px">${L.map(([t,d])=>`<li><strong>${t}</strong> · <span class="muted">${d}</span></li>`).join('')}</ol>
+    <p class="muted" style="margin:0;font-size:12px">Pistes générales, pas un conseil personnalisé : compare les frais avant d’ouvrir quoi que ce soit.</p></section>` }
 /* ---------- wizard ---------- */
 /* ---------- info bubbles ---------- */
 const openInfo=new Set();
@@ -719,7 +742,7 @@ function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
     ${nav()}`;
   if(st===5) body=`<div class="eyebrow">5 · Tes objectifs</div><h2>Qu'est-ce que tu veux avoir atteint ?</h2>
     <p class="lead">Un objectif par horizon, avec un montant. Laisse vide si tu n'en as pas.${wzIndep()?' Pour ton activité, choisis « Chiffre d’affaires » : il sera suivi automatiquement avec tes encaissements.':''}</p>
-    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="card" style="background:var(--sunk);padding:16px;gap:8px"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €">${wzIndep()?`<label for="wo-t-${i}" hidden>Type</label><select id="wo-t-${i}" data-wz="type" data-arr="obj" data-i="${i}"><option value="epargne" ${o.type!=='ca'?'selected':''}>Épargne</option><option value="ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires</option></select>`:''}</div>${per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> ${o.type==='ca'?'de chiffre d’affaires à faire':'à mettre de côté'} par mois.</span>`:''}</div>`}).join('')}
+    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="card" style="background:var(--sunk);padding:16px;gap:8px"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €">${wzIndep()?`<label for="wo-t-${i}" hidden>Type</label><select id="wo-t-${i}" data-wz="type" data-arr="obj" data-i="${i}"><option value="epargne" ${o.type!=='ca'&&o.type!=='benef'?'selected':''}>Épargne</option><option value="benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option><option value="ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires total</option></select>`:''}</div>${o.type==='benef'&&wzN(o.cible)>0?`<span class="muted" style="font-size:13px">Soit <strong class="num">${eur(wzN(o.cible))}</strong> de bénéfice chaque mois, après achats, frais et cotisations.</span>`:per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> ${o.type==='ca'?'de chiffre d’affaires à faire':'à mettre de côté'} par mois.</span>`:''}</div>`}).join('')}
     ${nav('wz-finish','Terminer')}`;
   if(st===6) body=`<div class="eyebrow">C'est prêt</div><h2>Ton cockpit est réglé${wz.nom?', '+esc(wz.nom.split(' ')[0]):''}</h2>
     <p class="lead">Dernière étape, la plus utile : importe le relevé de ta banque. En quelques secondes, tu verras où part vraiment ton argent, catégorie par catégorie.</p>
@@ -751,7 +774,7 @@ function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg
   cfg.comptes=comptes;
   const today=new Date(); cfg.objectifs=cfg.objectifs||[];
   wz.obj.forEach(o=>{ if(!o.nom.trim()&&!wzN(o.cible)) return; const d=new Date(today.getFullYear(),today.getMonth()+o.h,today.getDate());
-    const ca=o.type==='ca'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||((ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:ca?'':(comptes.some(c=>!isCourant(c))?'__all':''),...(ca?{type:'ca',debut:ymd(today).slice(0,8)+'01'}:{})}) });
+    const ca=o.type==='ca'&&wzIndep(), bf=o.type==='benef'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||(bf?'Bénéfice mensuel':(ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:ca||bf?'':(comptes.some(c=>!isCourant(c))?'__all':''),...(ca?{type:'ca',debut:ymd(today).slice(0,8)+'01'}:bf?{type:'benef'}:{})}) });
   if(!(cfg.virements||[]).length&&b.epargne>0){ const e=comptes.find(c=>!isCourant(c)); cfg.virements=[{nom:'Épargne'+(e?' · '+e.nom:''),montant:b.epargne}] }
   cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
@@ -775,7 +798,7 @@ function render(){
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
-  ensureAccounts(); revMigrate(); objMigrate();
+  ensureAccounts(); revMigrate(); objMigrate(); objMigrate2();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
   $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='ana'?viewAna(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
@@ -806,10 +829,15 @@ function viewDash(){
     <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
     <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
+  ${viewPlacer()}
   <div class="row">
     <section class="card grow" aria-labelledby="h-obj">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="h-obj">Objectifs</h2><button class="btn ghost small" data-act="goto" data-tab="set">Modifier</button></div>
-      ${(cfg.objectifs||[]).length?(cfg.objectifs||[]).map(o=>{const a=goalActual(o),c=Number(o.cible)||0,p=c?Math.min(100,a/c*100):0,paies=paiesAvant(o.echeance),rest=Math.max(0,c-a);
+      ${(cfg.objectifs||[]).length?(cfg.objectifs||[]).map(o=>{ if(o.type==='benef'){ const b=benefStats(o), c=+o.cible||0, st=proStats([cur]), p=c?Math.max(0,Math.min(100,b.net/c*100)):0;
+          return `<div class="goal"><div class="head"><span style="font-weight:600">${esc(o.nom)} ${b.net>=c&&c?'<span class="pill ok">Tenu ce mois-ci</span>':''}</span><span class="num">${eur(b.net)} / ${eur(c)} <span class="muted">par mois</span></span></div>
+          <div class="bar"><span style="width:${p}%"></span></div>
+          <div class="muted" style="font-size:13px">Bénéfice de ${esc(monthLabel(cur))} = ${eur(st.ca)} encaissés − ${eur(st.achats)} d’achats − ${eur(st.frais)} de frais − ${eur(st.cotis)} de cotisations${b.net<c?` · il manque <strong class="num">${eur(c-b.net)}</strong>`:''}${b.avg3!==null?` · moyenne des mois précédents : ${eur(b.avg3)}`:''}${b.n?` · objectif tenu ${b.hits} mois sur ${b.n}`:''}</div></div>` }
+        const a=goalActual(o),c=Number(o.cible)||0,p=c?Math.min(100,a/c*100):0,paies=paiesAvant(o.echeance),rest=Math.max(0,c-a);
         const pill=a>=c?'<span class="pill ok">Atteint</span>':paies===0&&o.echeance?'<span class="pill warn">Échéance passée</span>':'';
         return `<div class="goal"><div class="head"><span style="font-weight:600">${esc(o.nom)} ${pill}</span><span class="num">${eur(a)} / ${eur(c)}</span></div>
         <div class="bar"><span style="width:${p}%"></span></div>
@@ -818,7 +846,7 @@ function viewDash(){
     <section class="card side" aria-labelledby="h-pat">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 id="h-pat">Comptes</h2><span class="muted" style="font-size:13px">Mets à jour les soldes ici</span></div>
       ${total>0?`<div class="split" role="img" aria-label="Répartition du patrimoine">${sorted.filter(c=>c.montant>0).map((c,i)=>`<span style="width:${c.montant/total*100}%;background:${COLORS[i%COLORS.length]}"></span>`).join('')}</div>`:''}
-      ${sorted.map((c,i)=>`<div class="acct"><label for="acc-${c.id}" style="display:flex;align-items:center"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span>${esc(c.nom)}${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
+      ${sorted.map((c,i)=>`<div class="acct"><label for="acc-${c.id}" style="display:flex;align-items:center"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span>${esc(c.nom)}${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
     </section>
   </div>
   <div class="row">
@@ -963,9 +991,9 @@ function viewSet(){
       <div class="f" style="display:flex;flex-direction:column;gap:4px;flex:1 1 180px"><label class="lbl" for="o-n-${o.id}">Objectif</label><input type="text" id="o-n-${o.id}" value="${esc(o.nom)}" data-act="goal" data-id="${o.id}" data-k="nom"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-c-${o.id}">Cible</label><input class="amount" id="o-c-${o.id}" inputmode="decimal" value="${o.cible}" data-act="goal" data-id="${o.id}" data-k="cible"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-e-${o.id}">Échéance</label><input type="date" id="o-e-${o.id}" value="${o.echeance||''}" data-act="goal" data-id="${o.id}" data-k="echeance"></div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option><option value="__all" ${o.type!=='ca'&&o.compteId==='__all'?'selected':''}>Toute mon épargne</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${o.type!=='ca'&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé</option>`:''}</select></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option><option value="__all" ${!o.type&&o.compteId==='__all'?'selected':''}>Toute mon épargne</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${!o.type&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'||o.type==='benef'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé (total)</option><option value="__benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option>`:''}</select></div>
       ${o.type==='ca'?`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-d-${o.id}">Compté depuis</label><input type="date" id="o-d-${o.id}" value="${o.debut||''}" data-act="goal" data-id="${o.id}" data-k="debut"></div>`:''}
-      ${o.compteId||o.type==='ca'?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
+      ${o.compteId||o.type?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
       <button class="iconbtn" data-act="goaldel" data-id="${o.id}" aria-label="Supprimer ${esc(o.nom)}" style="align-self:flex-end">✕</button></div>`).join('')}
     <button class="btn ghost small" data-act="goaladd" style="align-self:flex-start">Ajouter un objectif</button>
   </section>
@@ -1033,7 +1061,7 @@ document.addEventListener('change',e=>{
   else if(a==='bud'){(cfg.budgets=cfg.budgets||{})[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='virset'){const v=cfg.virements[+t.dataset.i];v[t.dataset.k]=t.dataset.k==='montant'?num(t.value):t.value;saveCfg();render()}
   else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;c[k]=(k==='dispo'||k==='pro')?t.checked:k==='montant'?num(t.value):t.value;saveCfg();render()}
-  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
+  else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else if(k==='compteId'&&t.value==='__benef'){o.type='benef';o.compteId=''}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
@@ -1069,15 +1097,16 @@ function buildContext(){
   const cats=CATS.filter(c=>c.g!=='revenu'&&c.g!=='interne'&&(s.by[c.id]||0)>0).sort((a,c2)=>s.by[c2.id]-s.by[a.id]);
   if(cats.length){ L.push(''); L.push('Dépenses par catégorie :'); cats.forEach(c=>L.push('- '+c.nom+' : '+eur(s.by[c.id])+(b[c.id]?' (budget '+eur(b[c.id])+')':''))) }
   const top=[...m.ops].filter(o=>o.montant<0&&CAT[o.cat]&&CAT[o.cat].g!=='interne'&&CAT[o.cat].g!=='epargne').sort((a,c2)=>a.montant-c2.montant).slice(0,8);
-  if(top.length){ L.push(''); L.push('Plus grosses dépenses du mois :'); top.forEach(o=>L.push('- '+o.date+' · '+String(o.libelle).slice(0,40)+' · '+eur(-o.montant,2))) }
+  if(top.length){ L.push(''); L.push('Plus grosses dépenses du mois :'); top.forEach(o=>L.push('- '+o.date+' · '+String(o.libelle).slice(0,40)+' · '+eur(-o.montant,2)+(CAT[o.cat].g==='pro'?' (dépense pro : '+CAT[o.cat].nom+')':''))) }
   L.push(''); L.push('Patrimoine : '+eur(tot)+' au total, dont '+eur(dispo)+' disponible (matelas visé : '+eur(cfg.seuilSecurite||0)+')');
-  comptes.forEach(c=>L.push('- '+c.nom+' : '+eur(c.montant)));
-  const ob=cfg.objectifs||[]; if(ob.length){ L.push(''); L.push('Objectifs :'); ob.forEach(o=>L.push('- '+o.nom+' : '+eur(goalActual(o))+' / '+eur(o.cible)+(o.echeance?' avant le '+new Date(o.echeance).toLocaleDateString('fr-FR'):''))) }
+  comptes.forEach(c=>{ const p=plafondOf(c); L.push('- '+c.nom+' : '+eur(c.montant)+(p?(isFull(c)?' (PLEIN, plafond '+eur(p)+' atteint : plus aucun versement possible)':' (plafond '+eur(p)+', reste '+eur(p-(+c.montant||0))+')'):'')) });
+  if(isIndep()){ const st=proStats([cur]); L.push(''); L.push('Activité : micro-entreprise ('+microCfg().def.nom+'). Ce mois : '+eur(st.ca)+' encaissés, '+eur(st.achats)+' d’achats, '+eur(st.frais)+' de frais, '+eur(st.cotis)+' de cotisations, bénéfice '+eur(st.net)) }
+  const ob=cfg.objectifs||[]; if(ob.length){ L.push(''); L.push('Objectifs :'); ob.forEach(o=>L.push('- '+o.nom+' : '+eur(goalActual(o))+' / '+eur(o.cible)+(o.type==='benef'?' de bénéfice par mois':'')+(o.type!=='benef'&&o.echeance?' avant le '+new Date(o.echeance).toLocaleDateString('fr-FR'):''))) }
   const v=cfg.virements||[]; if(v.length){ L.push(''); L.push('Virements prévus chaque mois : '+v.map(x=>x.nom+' '+eur(x.montant)).join(', ')) }
   if(m.note){ L.push(''); L.push('Ma note du mois : '+m.note) }
   return L.join('\n');
 }
-function askText(){ const q=document.getElementById('ask-q').value.trim(); return 'Tu es mon coach budget : direct, concret, chiffré. Réponds en tenant compte de mes données ci-dessous.\n\n'+buildContext()+'\n\nMa question : '+(q||'Analyse mon mois et dis-moi ce que je dois améliorer en priorité.') }
+function askText(){ const q=document.getElementById('ask-q').value.trim(); return 'Tu es mon coach budget : direct, concret, chiffré. Réponds en tenant compte de mes données ci-dessous. Respecte les plafonds des livrets : ne me conseille jamais de verser sur un livret plein, propose d’autres supports.\n\n'+buildContext()+'\n\nMa question : '+(q||'Analyse mon mois et dis-moi ce que je dois améliorer en priorité.') }
 document.getElementById('askopen').addEventListener('click',()=>{ const mob=matchMedia('(pointer:coarse)').matches; document.getElementById('ask-go').textContent=mob?'Copier et ouvrir Claude':'Ouvrir dans Claude'; document.querySelector('#ask .lead-ask').textContent=mob?'Écris ta question. Le bouton copie ta question avec un résumé de ton mois, puis ouvre Claude : appuie longuement dans la zone de saisie, « Coller », et envoie.':'Écris ta question. Le bouton ouvre Claude.ai avec ta question et un résumé de ton mois déjà écrits : tu n’as plus qu’à appuyer sur Envoyer.'; document.getElementById('ask-ctx').textContent=buildContext(); document.getElementById('ask-msg').textContent=''; const d=document.getElementById('ask'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); document.getElementById('ask-q').focus() });
 document.getElementById('ask-cancel').addEventListener('click',()=>document.getElementById('ask').close());
 document.getElementById('ask-go').addEventListener('click',async()=>{ const t=askText(), msg=document.getElementById('ask-msg');
