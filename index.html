@@ -286,16 +286,21 @@ function splitCSV(text){
   row.push(cell); if(row.some(c=>c.trim()!=='')) rows.push(row);
   return rows.map(r=>r.map(c=>c.trim()));
 }
-function pNum(s){ if(s==null) return NaN; s=String(s).replace(/[\s €]|EUR/gi,''); if(!s) return NaN; if(s.includes(',')&&s.includes('.')) s=s.replace(/\./g,''); s=s.replace(',','.'); if(!/^[-+]?\d*\.?\d+$/.test(s)) return NaN; return parseFloat(s) }
-function pDate(s){ s=String(s||''); let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if(m){let y=+m[3]; if(y<100) y+=2000; return y+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0')} m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[1]+'-'+m[2]+'-'+m[3]:null }
+function pNum(s){ if(s==null) return NaN; s=String(s).replace(/[\s €]|EUR/gi,''); if(!s) return NaN; s=s.replace(/[’'\u202f]/g,''); if(/^-?\(.*\)$/.test(s)) s='-'+s.replace(/[()-]/g,''); if(s.includes(',')&&s.includes('.')){ if(s.lastIndexOf(',')>s.lastIndexOf('.')) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(/,/g,'') } else s=s.replace(',','.'); if(!/^[-+]?\d*\.?\d+$/.test(s)) return NaN; return parseFloat(s) }
+const MOIS={jan:1,janv:1,janvier:1,january:1,feb:2,fev:2,fevr:2,fevrier:2,february:2,mar:3,mars:3,march:3,apr:4,avr:4,avril:4,april:4,may:5,mai:5,jun:6,juin:6,june:6,jul:7,juil:7,juillet:7,july:7,aug:8,aou:8,aout:8,august:8,sep:9,sept:9,septembre:9,september:9,oct:10,octobre:10,october:10,nov:11,novembre:11,november:11,dec:12,decembre:12,december:12};
+function pDate(s){ s=String(s||'').trim(); let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if(m){let y=+m[3]; if(y<100) y+=2000; return y+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0')} m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  const t=s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\./g,'');
+  m=t.match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})/); if(m&&MOIS[m[2]]) return m[3]+'-'+String(MOIS[m[2]]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');
+  m=t.match(/^([a-z]+)\s+(\d{1,2}),?\s+(\d{4})/); if(m&&MOIS[m[1]]) return m[3]+'-'+String(MOIS[m[1]]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0');
+  return null }
 function parseBank(text){
   const rows=splitCSV(text); if(rows.length<2) return null;
-  let h=rows.findIndex(r=>r.some(c=>/date/i.test(c))&&r.some(c=>/montant|amount|d[ée]bit|cr[ée]dit/i.test(c)));
+  let h=rows.findIndex(r=>r.some(c=>/date|^jour$/i.test(c))&&r.some(c=>/montant|amount|d[ée]bit|money out|paid out|sortie|retrait|withdrawal|d[ée]pense|cr[ée]dit|money in|paid in|entr[ée]e|deposit|versement re/i.test(c)));
   let iD=-1,iL=-1,iM=-1,iDe=-1,iC=-1,iS=-1,iT=-1,iSt=-1,iF=-1,iP=-1, body;
   if(h>=0){ const H=rows[h].map(c=>c.toLowerCase());
-    H.forEach((c,i)=>{ if(/date/.test(c)&&(iD<0||/op[ée]r/.test(c))) iD=i;
+    H.forEach((c,i)=>{ if(/date|^jour$/.test(c)&&(iD<0||/op[ée]r/.test(c))) iD=i;
       if(/libell|label|description|d[ée]tail|intitul|nom/.test(c)&&!/date/.test(c)&&iL<0) iL=i;
-      if(/solde|balance/.test(c)&&iS<0) iS=i; if(/montant|amount/.test(c)&&!/solde/.test(c)&&iM<0) iM=i; if(/d[ée]bit/.test(c)&&iDe<0) iDe=i; if(/cr[ée]dit/.test(c)&&iC<0) iC=i; if(/^type$/.test(c)) iT=i; if(/^(state|[ée]tat|statut)$/.test(c)) iSt=i; if(/^(fee|fees|frais)$/.test(c)) iF=i; if(/^(product|produit)$/.test(c)) iP=i; });
+      if(/solde|balance/.test(c)&&iS<0) iS=i; if(/montant|amount/.test(c)&&!/solde|balance|orig/.test(c)&&(iM<0||/^(montant|amount|total amount)\b/.test(c))) iM=i; if(/d[ée]bit|money out|paid out|sortie|retrait|withdrawal|d[ée]pense/.test(c)&&iDe<0) iDe=i; if(/cr[ée]dit|money in|paid in|entr[ée]e|deposit|versement re/.test(c)&&iC<0) iC=i; if(/^type$/.test(c)) iT=i; if(/^(state|[ée]tat|statut)$/.test(c)) iSt=i; if(/^(fee|fees|frais)$/.test(c)) iF=i; if(/^(product|produit)$/.test(c)) iP=i; });
     body=rows.slice(h+1);
   } else {
     body=rows; const w=Math.max(...rows.map(r=>r.length)); let best=0;
@@ -948,7 +953,7 @@ function readFile(f){ if(!f) return; const r=new FileReader();
   r.onload=()=>{ let txt=String(r.result||''); if(txt.includes(String.fromCharCode(65533))){ const r2=new FileReader(); r2.onload=()=>finish(String(r2.result||'')); r2.readAsText(f,'windows-1252'); } else finish(txt) };
   r.onerror=()=>toast('Impossible de lire ce fichier.');
   r.readAsText(f,'utf-8');
-  function finish(t){ const ops=parseBank(t); if(!ops){toast('Colonnes non reconnues : il faut une date, un libellé et un montant (ou débit/crédit).');return} if(!ops.length){toast('Aucune opération trouvée dans ce fichier.');return} const acc=(cfg.comptes||[]).find(c=>c.id===impAcc); if(!acc){toast('Ajoute d’abord un compte dans Réglages.');return} if(isCourant(acc)) importOps(ops,acc.id); else importSavings(acc.id,ops) } }
+  function finish(t){ const ops=parseBank(t); if(!ops){ const hdr=splitCSV(t).slice(0,8).find(r=>r.filter(x=>x).length>=3)||[]; toast('Colonnes non reconnues. Colonnes trouvées : '+hdr.slice(0,8).map(x=>String(x).slice(0,20)).join(' | ')+'. Envoie-les à Claude pour adapter l’import.'); return} if(!ops.length){toast('Aucune opération trouvée dans ce fichier.');return} const acc=(cfg.comptes||[]).find(c=>c.id===impAcc); if(!acc){toast('Ajoute d’abord un compte dans Réglages.');return} if(isCourant(acc)) importOps(ops,acc.id); else importSavings(acc.id,ops) } }
 document.addEventListener('dragover',e=>{const d=document.getElementById('drop'); if(d&&d.contains(e.target)){e.preventDefault();d.classList.add('on')}});
 document.addEventListener('dragleave',e=>{const d=document.getElementById('drop'); if(d) d.classList.remove('on')});
 document.addEventListener('drop',e=>{const d=document.getElementById('drop'); if(d&&d.contains(e.target)){e.preventDefault();d.classList.remove('on');readFile(e.dataTransfer.files&&e.dataTransfer.files[0])}});
