@@ -172,7 +172,7 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
 <dialog id="ask" aria-labelledby="ask-title">
   <form class="in" id="askform" method="dialog">
     <h2 id="ask-title">Demander à Claude</h2>
-    <p class="muted" style="margin:0;font-size:14px">Écris ta question. Le bouton ouvre Claude.ai avec ta question et un résumé de ton mois déjà écrits : tu n'as plus qu'à appuyer sur Envoyer.</p>
+    <p class="muted lead-ask" style="margin:0;font-size:14px">Écris ta question. Le bouton ouvre Claude.ai avec ta question et un résumé de ton mois déjà écrits : tu n'as plus qu'à appuyer sur Envoyer.</p>
     <label class="lbl" for="ask-q">Ta question</label>
     <textarea id="ask-q" placeholder="Ex. Est-ce que je peux me permettre un week-end à 200 € le mois prochain ?"></textarea>
     <details><summary class="muted" style="cursor:pointer;font-size:14px">Voir le résumé envoyé</summary><pre id="ask-ctx"></pre></details>
@@ -451,7 +451,7 @@ function ensureAccounts(){ if(accChecked||!cfg) return; accChecked=true; cfg.com
   if(used.has('revolut')) add.push({id:'revolut',nom:'Revolut',type:'courant',montant:0,dispo:false});
   used.forEach(id=>{ if(id!=='cic'&&id!=='revolut') add.push({id,nom:'Compte courant',type:'courant',montant:0,dispo:false}) });
   cfg.comptes=add.concat(cfg.comptes); saveCfg() }
-function needsWizard(){ if(forceWizard) return true; if(!cfg) return true; return !cfg.onboarded&&!cfg.onboardSkipped&&!((cfg.comptes||[]).length) }
+function needsWizard(){ if(forceWizard) return true; if(!cfg) return true; if(cfg.resetWizard) return true; return !cfg.onboarded&&!cfg.onboardSkipped&&!((cfg.comptes||[]).length) }
 const FIX_CATS=[['abos','Abonnements & téléphone'],['logement','Logement & assurances'],['transport','Voiture & transport'],['sport','Sport'],['papa','Remboursement de prêt ou dette'],['courses','Courses']];
 const FIX_PRESETS=[['Téléphone','abos'],['Streaming / musique','abos'],['Salle de sport','sport'],['Transport / essence','transport'],['Assurance','logement'],['Loyer ou participation','logement'],['Remboursement de prêt','papa'],['Courses','courses']];
 const ACC_PRESETS=[['Compte courant','courant'],['Revolut','courant'],['Livret A','epargne'],['Livret jeune','epargne'],['LDDS','epargne'],['LEP','epargne'],['PEA','epargne'],['Assurance-vie','epargne']];
@@ -520,7 +520,7 @@ function wzAction(a,t){
   else if(a==='wz-addfix'){ const p=FIX_PRESETS[+t.dataset.i]; wz.fixes.push({nom:p?p[0]:'',montant:'',cat:p?p[1]:'abos'}); render(); const ins=document.querySelectorAll('[data-arr="fixes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
   else if(a==='wz-addacc'){ const p=ACC_PRESETS[+t.dataset.i]; wz.comptes.push({id:uid(),nom:p?p[0]:'',type:p?p[1]:'courant',montant:'',dispo:p?isLivret(p[0]):false}); render(); const ins=document.querySelectorAll('[data-arr="comptes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
   else if(a==='wz-del'){ wz[t.dataset.arr].splice(+t.dataset.i,1) }
-  else if(a==='wz-skip'){ if(!cfg) cfg=defaultCfg(); cfg.onboardSkipped=true; saveCfg(); wz=null; forceWizard=false; tab='dash' }
+  else if(a==='wz-skip'){ if(!cfg) cfg=defaultCfg(); cfg.onboardSkipped=true; delete cfg.resetWizard; saveCfg(); wz=null; forceWizard=false; tab='dash' }
   else if(a==='wz-cancel'){ wz=null; forceWizard=false }
   else if(a==='wz-finish'){ wzFinish(); wz.step=WZ_STEPS-1 }
   else if(a==='wz-import'){ wz=null; forceWizard=false; tab='rel' }
@@ -540,7 +540,7 @@ function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg
   wz.obj.forEach(o=>{ if(!o.nom.trim()&&!wzN(o.cible)) return; const d=new Date(today.getFullYear(),today.getMonth()+o.h,today.getDate());
     cfg.objectifs.push({id:uid(),nom:o.nom.trim()||('Objectif à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:''}) });
   if(!(cfg.virements||[]).length&&b.epargne>0){ const e=comptes.find(c=>!isCourant(c)); cfg.virements=[{nom:'Épargne'+(e?' · '+e.nom:''),montant:b.epargne}] }
-  cfg.onboarded=true; cfg.onboardSkipped=false; accChecked=true; saveCfg(); forceWizard=true;
+  cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
 
 function wzLive(){ if(!wz) return; const t=wzTotals(), sg=wzSuggest(); const set=(k,v,bad)=>{const el=document.querySelector('[data-live="'+k+'"]'); if(el){el.textContent=v; if(bad!==undefined) el.classList.toggle('bad',bad)}};
@@ -856,14 +856,15 @@ function buildContext(){
   return L.join('\n');
 }
 function askText(){ const q=document.getElementById('ask-q').value.trim(); return 'Tu es mon coach budget : direct, concret, chiffré. Réponds en tenant compte de mes données ci-dessous.\n\n'+buildContext()+'\n\nMa question : '+(q||'Analyse mon mois et dis-moi ce que je dois améliorer en priorité.') }
-document.getElementById('askopen').addEventListener('click',()=>{ document.getElementById('ask-ctx').textContent=buildContext(); document.getElementById('ask-msg').textContent=''; const d=document.getElementById('ask'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); document.getElementById('ask-q').focus() });
+document.getElementById('askopen').addEventListener('click',()=>{ const mob=matchMedia('(pointer:coarse)').matches; document.getElementById('ask-go').textContent=mob?'Copier et ouvrir Claude':'Ouvrir dans Claude'; document.querySelector('#ask .lead-ask').textContent=mob?'Écris ta question. Le bouton copie ta question avec un résumé de ton mois, puis ouvre Claude : appuie longuement dans la zone de saisie, « Coller », et envoie.':'Écris ta question. Le bouton ouvre Claude.ai avec ta question et un résumé de ton mois déjà écrits : tu n’as plus qu’à appuyer sur Envoyer.'; document.getElementById('ask-ctx').textContent=buildContext(); document.getElementById('ask-msg').textContent=''; const d=document.getElementById('ask'); if(d.showModal) d.showModal(); else d.setAttribute('open',''); document.getElementById('ask-q').focus() });
 document.getElementById('ask-cancel').addEventListener('click',()=>document.getElementById('ask').close());
 document.getElementById('ask-go').addEventListener('click',async()=>{ const t=askText(), msg=document.getElementById('ask-msg');
   let ok=false; try{ await navigator.clipboard.writeText(t); ok=true }catch(e){}
   if(!ok){ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0;left:0;top:0'; document.getElementById('askform').appendChild(ta); ta.focus(); ta.select(); try{ok=document.execCommand('copy')}catch(e){} ta.remove() }
   const q=t.length>6000?t.slice(0,6000):t;
-  window.open('https://claude.ai/new?q='+encodeURIComponent(q),'_blank','noopener');
-  msg.textContent='Ton message est pré-rempli dans Claude : vérifie-le et appuie sur Envoyer.'+(ok?' (Il est aussi copié, au cas où : Ctrl+V.)':'') });
+  const mobile=matchMedia('(pointer:coarse)').matches;
+  if(mobile){ msg.textContent=ok?'Message copié ! Dans Claude, appuie longuement dans la zone de saisie, puis « Coller ».':'Copie impossible : ouvre « Voir le résumé envoyé », sélectionne le texte et copie-le.'; setTimeout(()=>window.open('https://claude.ai/new?q='+encodeURIComponent(q),'_blank','noopener'),ok?1200:0) }
+  else { window.open('https://claude.ai/new?q='+encodeURIComponent(q),'_blank','noopener'); msg.textContent='Ton message est pré-rempli dans Claude : vérifie-le et appuie sur Envoyer.'+(ok?' (Il est aussi copié, au cas où : Ctrl+V.)':'') } });
 /* ---------- backend (Supabase) ---------- */
 const SUPABASE_URL='https://pwthxdofpdpnopukjofi.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3dGh4ZG9mcGRwbm9wdWtqb2ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MjY4NTYsImV4cCI6MjEwODAwMjg1Nn0.3vVUv40dIn3XRsQoHyoZBrpXbkb31LyRse1aWUo7W9Y';
