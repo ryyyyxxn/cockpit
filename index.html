@@ -266,6 +266,28 @@ function getMonth(k){ if(!months[k]) months[k]={mois:k,ops:[],note:'',cloture:fa
 
 /* ---------- computations ---------- */
 function daysLeft(k){const b=periodBounds(k);const t=new Date(now.getFullYear(),now.getMonth(),now.getDate());if(t<b.start||t>b.end)return 0;return Math.round((b.end-t)/864e5)+1}
+/* ---------- soldes automatiques ---------- */
+const STOPW=new Set(['compte','mon','ma','mes','de','du','la','le','les','et','courant']);
+const nameWords=n=>deacc(String(n||'').replace(/\(.*?\)/g,' ')).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(w=>w&&!STOPW.has(w));
+function libMatch(lib,ws){ if(!ws.length) return false; const lw=deacc(lib).replace(/[^a-z0-9]+/g,' ').trim().split(' ');
+  return ws.every(w=>lw.some(x=>x===w||(w.length>=4&&x.startsWith(w))||(x.length>=5&&w.startsWith(x)))) }
+let autoInfo={};
+function syncBalances(){ if(!cfg) return; const cs=cfg.comptes||[]; let changed=false; const today=ymd(new Date()); autoInfo={};
+  cs.forEach(c=>{ if(c.soldeDate==null){ c.soldeRef=+c.montant||0; c.soldeDate=today; changed=true } });
+  const allOps=[]; Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>allOps.push(o)));
+  const W={}; cs.forEach(c=>W[c.id]=nameWords(c.nom));
+  // which account does an internal transfer point to (most specific name wins)
+  const target=o=>{ const src=srcOf(o); let best=null,bl=0,tie=false; cs.forEach(c=>{ if(c.id===src||!W[c.id].length) return; if(libMatch(o.libelle,W[c.id])){ const l=W[c.id].join(' ').length; if(l>bl){best=c.id;bl=l;tie=false} else if(l===bl) tie=true } }); return tie?null:best };
+  const inferred={}; allOps.forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(g!=='epargne'&&g!=='interne') return; const t=target(o); if(!t) return; (inferred[t]=inferred[t]||[]).push(o) });
+  cs.forEach(c=>{ const d0=c.soldeDate; let own=isCourant(c)?allOps.filter(o=>srcOf(o)===c.id&&o.date>d0):((accHist[c.id]||{}).ops||[]).filter(o=>o.date>d0);
+    let delta=0,n=0,last='';
+    if(own.length){ own.forEach(o=>{delta+=+o.montant||0;n++; if(o.date>last) last=o.date}) }
+    else (inferred[c.id]||[]).filter(o=>o.date>d0).forEach(o=>{ delta-=+o.montant||0; n++; if(o.date>last) last=o.date });
+    const live=Math.round(((+c.soldeRef||0)+delta)*100)/100;
+    if(n) autoInfo[c.id]={n,last};
+    if(Math.abs(live-(+c.montant||0))>0.004){ c.montant=live; changed=true } });
+  if(changed&&db) saveCfg() }
+function setSolde(c,v){ c.montant=v; c.soldeRef=v; c.soldeDate=ymd(new Date()) }
 function compteVal(id){const c=(cfg.comptes||[]).find(x=>x.id===id);return c?Number(c.montant)||0:0}
 const PLAF=[[/livret ?a\b|livret bleu/,22950],[/ldds|lddc|developpement durable/,12000],[/\blep\b|epargne populaire/,10000],[/livret ?jeune/,1600]];
 function plafondOf(c){ if(+c.plafond) return +c.plafond; const n=deacc(c.nom); const x=PLAF.find(r=>r[0].test(n)); return x?x[1]:0 }
@@ -342,7 +364,7 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   const nm=deacc(cfg&&cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2);
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
-function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]){ const rc=cfg.regles[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
+function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]){ const rc=cfg.regles[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
   for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&a>0) continue; return c } }
   return a>0?'revenu':'autre' }
 const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
@@ -369,7 +391,7 @@ function importSavings(id,list){
   h.ops.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   const desc=list[0].date>=list[list.length-1].date; const withS=list.filter(o=>o.solde!=null);
   let msg=`${c.nom} : ${n} mouvements importés${dup?`, ${dup} doublons ignorés`:''}.`;
-  if(withS.length){ const last=desc?withS[0]:withS[withS.length-1]; if(!h.soldeDate||last.date>=h.soldeDate){ h.soldeDate=last.date; c.montant=last.solde; saveCfg(); msg+=` Solde mis à jour : ${eur(last.solde,2)}.` } }
+  if(withS.length){ const last=desc?withS[0]:withS[withS.length-1]; if(!h.soldeDate||last.date>=h.soldeDate){ h.soldeDate=last.date; c.montant=last.solde; c.soldeRef=last.solde; c.soldeDate=last.date; saveCfg(); msg+=` Solde mis à jour : ${eur(last.solde,2)}.` } }
   else msg+=' Pas de colonne solde : mets le solde à jour à la main.';
   if(db) db.doc('comptes/'+id).set(JSON.parse(JSON.stringify(h))).catch(err); cfg.lastImport=new Date().toISOString(); saveCfg();
   toast(msg); render();
@@ -798,7 +820,7 @@ function render(){
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
-  ensureAccounts(); revMigrate(); objMigrate(); objMigrate2();
+  ensureAccounts(); revMigrate(); objMigrate(); objMigrate2(); syncBalances();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
   $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='ana'?viewAna(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
@@ -844,9 +866,10 @@ function viewDash(){
         <div class="muted" style="font-size:13px">${a>=c?'Objectif tenu.':o.echeance?`Reste ${eur(rest)} · ${paies} paie${paies>1?'s':''} avant le ${new Date(o.echeance).toLocaleDateString('fr-FR')} → <strong class="num">${eur(paies?Math.ceil(rest/paies):rest)}</strong> par paie`:`Reste ${eur(rest)}`}${o.type==='ca'?' · chiffre d’affaires encaissé depuis le '+new Date((o.debut||'')+'T12:00:00').toLocaleDateString('fr-FR'):o.compteId==='__all'?' · suit toute ton épargne':o.compteId?' · suit le solde du compte':' · montant à mettre à jour dans Réglages'}</div></div>`}).join(''):'<div class="empty">Aucun objectif. Ajoute-en un dans Réglages.</div>'}
     </section>
     <section class="card side" aria-labelledby="h-pat">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 id="h-pat">Comptes</h2><span class="muted" style="font-size:13px">Mets à jour les soldes ici</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="hrow"><h2 id="h-pat">Comptes</h2>${ib('k-acc')}</div><span class="muted" style="font-size:13px">Saisis un solde une fois, tes relevés font le reste</span></div>
+      ${ip('k-acc','Quand tu tapes un solde, il devient le point de départ. Ensuite, chaque relevé importé le met à jour tout seul : les opérations du compte lui-même, et pour un livret ou Trade Republic, les virements que tu y fais depuis ta banque (repérés grâce au nom du compte dans le libellé). Un retrait d’un livret vers ta banque n’indique pas de quel livret il vient : dans ce cas, corrige le solde à la main.')}
       ${total>0?`<div class="split" role="img" aria-label="Répartition du patrimoine">${sorted.filter(c=>c.montant>0).map((c,i)=>`<span style="width:${c.montant/total*100}%;background:${COLORS[i%COLORS.length]}"></span>`).join('')}</div>`:''}
-      ${sorted.map((c,i)=>`<div class="acct"><label for="acc-${c.id}" style="display:flex;align-items:center"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span>${esc(c.nom)}${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
+      ${sorted.map((c,i)=>`<div class="acct"><label for="acc-${c.id}" style="display:flex;align-items:center"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span>${esc(c.nom)}${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}${autoInfo[c.id]?` <span class="pill ok" style="margin-left:6px" title="${autoInfo[c.id].n} opération(s) prise(s) en compte, jusqu’au ${autoInfo[c.id].last.slice(8,10)}/${autoInfo[c.id].last.slice(5,7)}">auto</span>`:''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
     </section>
   </div>
   <div class="row">
@@ -1050,7 +1073,7 @@ document.addEventListener('change',e=>{
   if(t.id==='csv'){ readFile(t.files&&t.files[0]); t.value=''; return }
   if(!a) return;
   if(a==='vir'){const m=getMonth(cur);m.virs[+t.dataset.i]=t.checked;saveMonth(cur);render()}
-  else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){c.montant=num(t.value);saveCfg();render()}}
+  else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){setSolde(c,num(t.value));saveCfg();render()}}
   else if(a==='cat'){const m=getMonth(cur);const o=m.ops.find(x=>x.id===t.dataset.id);if(o){o.cat=t.value;const k=ruleKey(o.libelle);if(k){(cfg.regles=cfg.regles||{})[k]=t.value;saveCfg()}saveMonth(cur);render()}}
   else if(a==='note'){const m=getMonth(cur);m.note=t.value;saveMonth(cur)}
   else if(a==='cfg'){cfg[t.dataset.k]=num(t.value);saveCfg();render()}
@@ -1060,7 +1083,7 @@ document.addEventListener('change',e=>{
   else if(a==='cfgtxt'){cfg[t.dataset.k]=t.value.trim();saveCfg()}
   else if(a==='bud'){(cfg.budgets=cfg.budgets||{})[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='virset'){const v=cfg.virements[+t.dataset.i];v[t.dataset.k]=t.dataset.k==='montant'?num(t.value):t.value;saveCfg();render()}
-  else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;c[k]=(k==='dispo'||k==='pro')?t.checked:k==='montant'?num(t.value):t.value;saveCfg();render()}
+  else if(a==='accset'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(!c)return;const k=t.dataset.k;if(k==='montant') setSolde(c,num(t.value)); else c[k]=(k==='dispo'||k==='pro')?t.checked:t.value;saveCfg();render()}
   else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else if(k==='compteId'&&t.value==='__benef'){o.type='benef';o.compteId=''}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
