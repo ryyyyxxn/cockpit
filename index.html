@@ -355,6 +355,8 @@ function parseBank(text){
     if(isNaN(a)) return; if(iF>=0){const fe=pNum(r[iF]); if(!isNaN(fe)&&fe) a-=Math.abs(fe)} if(a===0) return; const so=iS>=0?pNum(r[iS]):NaN; out.push({date:d,libelle:(r[iL]||'').replace(/\s+/g,' ').slice(0,120),montant:Math.round(a*100)/100,solde:isNaN(so)?null:so,type:iT>=0?(r[iT]||''):''}) });
   return out;
 }
+const FK_NOISE=new Set(['cb','carte','prlv','prelevement','prelevmt','vir','virement','inst','sepa','paiement','paiemt','achat','fact','facture','psc','du','de','le','la','les','des','a','au','ca','sa','sas','sarl','fr','europe','ref','motif']);
+function fullKey(l){ return deacc(l).split(/[^a-z0-9]+/).filter(w=>w&&!/[0-9]/.test(w)&&!FK_NOISE.has(w)).join(' ') }
 function ruleKey(l){return String(l||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,' ').replace(/\b(cb|carte|prlv|prelevement|vir|virement|sepa|paiement|achat|fact|du|de|le|la)\b/g,' ').trim().split(/\s+/).slice(0,2).join(' ')}
 function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((cfg&&cfg.comptes)||[]).find(c=>c.id===src);
   const neo=/revolut|lydia|n26|wise|nickel/i.test((acc&&acc.nom)||src||'');
@@ -364,7 +366,7 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   const nm=deacc(cfg&&cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2);
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
-function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const k=ruleKey(l); if(k&&cfg.regles&&cfg.regles[k]){ const rc=cfg.regles[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
+function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const fk=fullKey(l), rg=cfg.regles||{}; if(fk&&rg['f:'+fk]){ const rc=rg['f:'+fk], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const k=ruleKey(l); if(k&&rg[k]){ const rc=rg[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
   for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&a>0) continue; return c } }
   return a>0?'revenu':'autre' }
 const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
@@ -1074,7 +1076,10 @@ document.addEventListener('change',e=>{
   if(!a) return;
   if(a==='vir'){const m=getMonth(cur);m.virs[+t.dataset.i]=t.checked;saveMonth(cur);render()}
   else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){setSolde(c,num(t.value));saveCfg();render()}}
-  else if(a==='cat'){const m=getMonth(cur);const o=m.ops.find(x=>x.id===t.dataset.id);if(o){o.cat=t.value;const k=ruleKey(o.libelle);if(k){(cfg.regles=cfg.regles||{})[k]=t.value;saveCfg()}saveMonth(cur);render()}}
+  else if(a==='cat'){const m=getMonth(cur);const o=m.ops.find(x=>x.id===t.dataset.id);if(o){const v=t.value, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([cur]); let n=0;
+    if(fk){ (cfg.regles=cfg.regles||{})['f:'+fk]=v; const old=ruleKey(o.libelle); if(old&&cfg.regles[old]&&cfg.regles[old]!==v) delete cfg.regles[old];
+      Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat!==v){ x.cat=v; n++; touched.add(k) } })); saveCfg() }
+    touched.forEach(saveMonth); if(n) toast(`${n+1} opérations « ${o.libelle.slice(0,40)} » classées en ${CAT[v]?CAT[v].nom:v}.`); render()}}
   else if(a==='note'){const m=getMonth(cur);m.note=t.value;saveMonth(cur)}
   else if(a==='cfg'){cfg[t.dataset.k]=num(t.value);saveCfg();render()}
   else if(a==='aboname'){(cfg.aboNames=cfg.aboNames||{})[t.dataset.k]=t.value.trim();saveCfg()}
