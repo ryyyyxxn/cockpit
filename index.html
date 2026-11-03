@@ -92,6 +92,20 @@ th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;
 td{padding:8px;border-bottom:1px solid var(--sunk);vertical-align:middle}
 td.r,th.r{text-align:right}
 .ops td select{min-width:170px}
+@media (max-width:640px){
+  .ops thead{display:none}
+  .ops,.ops tbody{display:block}
+  .ops tr{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"lib lib amt" "date src src" "cat cat del";gap:6px 10px;padding:12px 0;border-bottom:1px solid var(--sunk);align-items:center}
+  .ops td{border:0;padding:0}
+  .ops td.c-lib{grid-area:lib;min-width:0!important;font-weight:600}
+  .ops td.c-amt{grid-area:amt;text-align:right}
+  .ops td.c-date{grid-area:date;color:var(--muted);font-size:13px}
+  .ops td.c-src{grid-area:src;font-size:12px}
+  .ops td.c-cat{grid-area:cat}
+  .ops td.c-cat select{min-width:0;width:100%}
+  .ops td.c-del{grid-area:del}
+}
+.triage{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;background:var(--warn-bg);border-radius:12px;padding:12px 14px;font-size:14px}
 .drop{border:2px dashed var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .drop.on{border-color:var(--accent);background:var(--ok-bg)}
 .form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -172,7 +186,16 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="au-pass">Mot de passe (8 caractères minimum)</label><input type="password" id="au-pass" autocomplete="current-password" minlength="8" required></div>
       <button class="btn" type="submit" id="au-go">Se connecter</button>
       <button class="btn ghost" type="button" id="au-switch">Pas encore de compte ? Créer un compte</button>
+      <button class="linkbtn" type="button" id="au-forgot" style="align-self:center">Mot de passe oublié ?</button>
       <div id="au-msg" class="muted" role="status" style="font-size:14px"></div>
+    </form>
+  </section>
+  <section id="recov" class="card" hidden style="max-width:440px;margin:24px auto;width:100%">
+    <h2>Choisis un nouveau mot de passe</h2>
+    <form id="recovform" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rc-pass">Nouveau mot de passe (8 caractères minimum)</label><input type="password" id="rc-pass" autocomplete="new-password" minlength="8" required></div>
+      <button class="btn" type="submit">Enregistrer</button>
+      <div id="rc-msg" class="muted" role="status" style="font-size:14px"></div>
     </form>
   </section>
   <main id="app">
@@ -224,21 +247,26 @@ const CATS=[
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
 const KEYWORDS=[
- ['epargne',/livret|trade ?republic|\bpea\b|assurance.?vie|epargne|épargne|\bpel\b/],
- ['revenu',/salaire|paie|caf|aide|apl|prime/],
- ['abos',/spotify|netflix|disney|apple|icloud|google|gemini|anthropic|claude|snap|free mobile|bouygues|sfr|orange|sosh|red by|basic.?fit|fitness|salle|deezer|prime video|youtube/],
- ['sorties',/deliveroo|uber ?eats|just ?eat|mcdo|mcdonald|burger|kfc|resto|restaurant|bar |brasserie|pizza|sushi|kebab|starbucks|cafe|café/],
- ['sante',/pharmacie|pharma\b|doctolib|medecin|médecin|dentiste|opticien|podolog|laboratoire|kine|kiné/],
+ ['epargne',/livret|trade ?republic|\bpea\b|assurance.?vie|epargne|épargne|\bpel\b|\bldds\b|\blep\b|\blddc\b/],
+ ['interne',/vir(ement)? interne|compte a compte|compte à compte|virement de compte/],
+ ['revenu',/salaire|paie|caf|aide|apl|prime|bourse|crous|france travail|pole emploi/],
+ ['logement',/loyer|foncia|nexity|citya|\borpi\b|\bedf\b|engie|veolia|\bsuez\b|eau de |assurance habitation|\bmaif\b|\bmacif\b|matmut|\bmaaf\b|\bgmf\b|\baxa\b|allianz|groupama|direct assurance|leocare|luko|assurance|assur\b|\bmma\b|generali|swiss ?life|ag2r|lcl assurance|pacifica|hiscox|april|olivier|electricite|électricité|\bgaz\b|ekwateur|mint energie|octopus|eau potable|syndic|taxe habitation|taxe fonciere/],
+ ['sport',/basic.?fit|fitness|salle de sport|keep cool|on air|wellpass|gymlib|neoness|orange bleue/],
+ ['loisirs',/disneyland|parc asterix|parc astérix|futuroscope|europa.?park/],
+ ['abos',/spotify|netflix|disney|apple\.com|apple|icloud|google|gemini|anthropic|claude|snap|free mobile|freebox|free telecom|bouygues|\bsfr\b|orange|sosh|red by|deezer|prime video|youtube|canal|notion|canva|adobe|microsoft|office 365|dropbox|openai|chatgpt|midjourney|audible|crunchyroll|molotov|dazn|bein|\bocs\b|paramount|fibre|sfr|free telecom|free sas|bbox|b&you|prixtel|lebara|lycamobile|nrj mobile|la poste mobile|coriolis|cdiscount mobile|youtube|twitch|patreon|onlyfans|tinder|bumble|hinge|meetic|duolingo|babbel|headspace|calm|strava|myfitnesspal|nintendo online|playstation plus|xbox game pass|game pass|ubisoft|ea play|icloud|google one|google storage|proton|nordvpn|surfsharkvpn|1password|bitwarden|lastpass|linkedin premium|medium|le monde|le figaro|lequipe|l.équipe|mediapart|cafeyn/],
+ ['sorties',/deliveroo|coffee|waffle|\bquick\b|pain quotidien|gladines|uber ?eats|just ?eat|mcdo|mcdonald|burger|kfc|resto|restaurant|bar |brasserie|bistro|pizza|sushi|kebab|starbucks|cafe|café|tacos|five guys|boulangerie|patisserie|pâtisserie|creperie|crêperie|subway|domino|bagel|bubble|chicken|grill|snack|traiteur|\bpub\b|cocktail|mie caline|brioche|columbus|nando|big fernand|pret a manger|prêt à manger|fourchette|brasseur|buffalo|hippopotamus|courtepaille|flunch|del arte|vapiano|leon de bruxelles|bistro|wok|ramen|poke|bowl|indien|thai|libanais|cantine|crous resto|cafeteria|cafétéria|biere|bière|cave a|\bbar\b|lounge|chicha|glacier|amorino|dunkin|krispy|cojean|exki|bchef|o'tacos|otacos|popeyes|black and white|pitaya|class.?croute|marie blachere|marie blachère|feuillette/],
+ ['sante',/pharmacie|pharma\b|doctolib|medecin|médecin|dentiste|opticien|podolog|laboratoire|kine|kiné|mutuelle|hopital|hôpital|clinique|optic|optique|krys|afflelou|\batol\b|\balan\b|harmonie|mgen|\bmaaf sante|ameli|cpam|radiolog|osteo|ostéo|psy\b|psycholog|veterinaire|vétérinaire|centre de sante|centre de santé|labo/],
  ['hygiene',/coiffeur|coiffure|barbier|barber/],
- ['equipement',/boulanger|fnac|darty|ldlc|cdiscount|ikea|leroy ?merlin|castorama|\baction\b/],
+ ['equipement',/\bboulanger\b|fnac|darty|ldlc|cdiscount|ikea|leroy ?merlin|castorama|\baction\b|apple store|samsung|back ?market|rue du commerce|conforama|gifi|hema|flying tiger|maisons du monde|\bbut\b|alinea|alinéa|la foir.?fouille|centrakor|bricomarche|bricomarché|brico|mr bricolage|weldom|point p|lapeyre|darty|electro ?depot|cdiscount|materiel\.net|top achat|apple\.com\/fr|boutique orange|cash converters|easy cash|leclerc high tech/],
  ['etudes',/librairie|papeterie|bureau vall|cultura|universit|ecole|école/],
- ['loisirs',/cinema|cinéma|ugc|pathe|pathé|gaumont|mk2|steam|playstation|xbox|nintendo|ticketmaster|bowling|escape/],
- ['frais',/frais|commission|cotis.*carte|impot|impôt|dgfip|amende|antai/],
- ['shopping',/nike|snkrs|adidas|zalando|courir|foot ?locker|vinted|zara|h&m|asos|jd sports|amazon|shein|uniqlo/],
- ['courses',/carrefour|leclerc|auchan|lidl|monoprix|intermarch|franprix|aldi|super ?u|casino|picard/],
- ['transport',/uber|sncf|ratp|navigo|total|esso|bp |shell|avia|peage|péage|parking|bolt|heetch|blablacar|ouigo/],
- ['sport',/padel|playtomic|urban|five|decathlon|foot/],
- ['voyages',/airbnb|booking|ryanair|easyjet|air ?france|transavia|vueling|hotel|hôtel/]
+ ['loisirs',/cinema|\bfdj\b|cinéma|ugc|pathe|pathé|gaumont|mk2|steam|playstation|xbox|nintendo|ticketmaster|bowling|escape|laser game|karting|fnac spectacle|billet|billetterie|france billet|fnac spectacles|seetickets|dice\b|weezevent|shotgun|musee|musée|museum|zoo\b|aquarium|theatre|théâtre|concert|festival|\bparc\b|jeux|games|riot|epic games|blizzard|twitch|bowling|billard|paintball|accrobranche|kart|cine|ciné|kinepolis|cgr|megarama/],
+ ['frais',/(?<!grand )frais|commission|cotisation|agios|interets debiteurs|intérêts débiteurs|impot|impôt|dgfip|amende|antai|tresor public|trésor public/],
+ ['papa',/rembours(ement)? (de )?pr[eê]t|[eé]ch[eé]ance pr[eê]t|cr[eé]dit conso|cofidis|cetelem|sofinco|\bfloa\b|\boney\b|\balma\b|klarna|younited|\bpapa\b|\bmaman\b/],
+ ['shopping',/nike|snkrs|adidas|zalando|courir|foot ?locker|vinted|zara|h&m|asos|jd sports|amazon|shein|uniqlo|jack ?(&|and)? ?jones|bershka|pull ?(&|and)? ?bear|primark|kiabi|celio|jules|mango|stradivarius|lacoste|levi|snipes|foot korner|galeries lafayette|printemps|sephora|nocibe|nocibé|marionnaud|aliexpress|temu|kooples|decimas|half price|normal\b|kiabi|gemo|gémo|la halle|chaussea|eram|besson|minelli|zadig|sandro|maje|bash\b|ba&sh|morgan|camaieu|promod|pimkie|cache cache|bonobo|celio|devred|izac|brice|armand thiery|tommy|ralph|carhartt|new balance|asics|puma|reebok|vans|converse|timberland|the north face|quiksilver|superdry|calzedonia|intimissimi|undiz|etam|yves rocher|lush|kiko|rituals|l.occitane|claire.?s|pandora|histoire d.or|swarovski|lego|king jouet|la grande recre|la grande récré|joueclub|micromania|smyths/],
+ ['courses',/carrefour|\bcoop\b|u express|frichti|leclerc|auchan|lidl|monoprix|intermarch|franprix|aldi|super ?u\b|casino|picard|super ?march|supermarch|hypermarch|\bg20\b|epicerie|épicerie|biocoop|naturalia|grand frais|netto|\bcora\b|geant|géant|\bspar\b|proxi|vival|primeur|monop|market|maxi ?zoo|animalis|truffaut|jardiland|botanic|leader price|norma\b|lidl|bio c.? bon|la vie claire|thiriet|marché|boucherie|fromagerie|poissonnerie|halal|asia|tang freres|tang frères|paris store|drive/],
+ ['transport',/uber|sncf|ratp|navigo|total|esso|bp |shell|avia|peage|péage|parking|bolt|heetch|blablacar|ouigo|autodoc|norauto|feu vert|midas|speedy|oscaro|carglass|contr[oô]le technique|carburant|indigo|saemes|vinci|sanef|aprr|cofiroute|\blime\b|velib|vélib|transilien|flixbus|getaround|taxi|g7|heetch|free ?now|wash|lavage|eleclerc carburant|station|intermarche carburant|dyneff|agip|q8|tamoil|carrefour energie|ulys|bip&go|bipandgo|zenpark|onepark|yespark|cityscoot|cooltra|ratp|tisseo|tcl|tbm|star\b|keolis|transdev|navette|autocar|ouibus|blablabus|sixt|europcar|hertz|avis\b|ada\b|leasys|free2move|zity|marcel/],
+ ['sport',/padel|playtomic|urban ?soccer|le five|decathlon|\bfoot\b|piscine|escalade|sport|intersport|go sport|sport 2000|skimium|snowleader|alltricks|i-run|private sport|foot|tennis|golf|squash|climb|arkose|piscine|aquatique|dojo|boxe|crossfit|yoga/],
+ ['voyages',/airbnb|booking|ryanair|easyjet|air ?france|transavia|vueling|volotea|wizz|hotel|hôtel|hostel|expedia|lastminute|opodo/]
 ];
 const isCourant=c=>!!c&&c.type==='courant';
 const courants=()=>((cfg&&cfg.comptes)||[]).filter(isCourant);
@@ -248,9 +276,9 @@ const srcName=id=>{const c=((cfg&&cfg.comptes)||[]).find(x=>x.id===id); return c
 const deacc=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 const COLORS=['var(--ink)','var(--accent)','var(--bar2)','var(--warn)','var(--muted)','var(--line)'];
 
-let impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
+let relCat='', impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
 const $app=document.getElementById('app'), $month=document.getElementById('month');
-const now=new Date();
+let now=new Date();
 const JP=()=>{const j=Math.round(Number(cfg&&cfg.jourPaie)||27);return Math.min(31,Math.max(1,j))};
 const payDate=(y,m)=>new Date(y,m,Math.min(JP(),new Date(y,m+1,0).getDate()));
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -308,7 +336,7 @@ function benefStats(o){ const c=+o.cible||0, cur0=proStats([cur]).net;
   const prev=[1,2,3,4,5,6].map(i=>addMonths(cur,-i)).filter(k=>months[k]&&proOpsOf(k).length), nets=prev.map(k=>proStats([k]).net);
   const avg3=nets.slice(0,3).length?nets.slice(0,3).reduce((a,b)=>a+b,0)/nets.slice(0,3).length:null;
   return {net:cur0,avg3,hits:nets.filter(v=>v>=c).length,n:nets.length} }
-function goalActual(o){return o.type==='benef'?proStats([cur]).net:o.type==='ca'?caGoalActual(o):o.compteId==='__all'?(cfg.comptes||[]).filter(c=>!isCourant(c)).reduce((a,c)=>a+(+c.montant||0),0):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
+function goalActual(o){return o.type==='benef'?proStats([cur]).net:o.type==='ca'?caGoalActual(o):o.compteId==='__all'?(cfg.comptes||[]).filter(c=>!isCourant(c)).reduce((a,c)=>a+(+c.montant||0),0):o.compteId==='__dispo'?(cfg.comptes||[]).filter(c=>c.dispo).reduce((a,c)=>a+(+c.montant||0),0):o.compteId?compteVal(o.compteId):Number(o.actuel)||0}
 function paiesAvant(ech){ if(!ech) return 0; const end=new Date(ech+'T23:59:59'); let n=0; let y=now.getFullYear(),mo=now.getMonth(); const t=new Date(now.getFullYear(),now.getMonth(),now.getDate()); if(payDate(y,mo)<t) mo++; while(payDate(y,mo)<=end && n<240){n++; mo++} return n }
 function stats(k){
   const m=months[k]; const ops=m?m.ops:[];
@@ -350,8 +378,8 @@ function parseBank(text){
   let iD=-1,iL=-1,iM=-1,iDe=-1,iC=-1,iS=-1,iT=-1,iSt=-1,iF=-1,iP=-1, body;
   if(h>=0){ const H=rows[h].map(c=>c.toLowerCase());
     H.forEach((c,i)=>{ if(/date|^jour$/.test(c)&&(iD<0||/op[ée]r/.test(c))) iD=i;
-      if(/libell|label|description|d[ée]tail|intitul|nom/.test(c)&&!/date/.test(c)&&iL<0) iL=i;
-      if(/solde|balance/.test(c)&&iS<0) iS=i; if(/montant|amount/.test(c)&&!/solde|balance|orig/.test(c)&&(iM<0||/^(montant|amount|total amount)\b/.test(c))) iM=i; if(/d[ée]bit|money out|paid out|sortie|retrait|withdrawal|d[ée]pense/.test(c)&&iDe<0) iDe=i; if(/cr[ée]dit|money in|paid in|entr[ée]e|deposit|versement re/.test(c)&&iC<0) iC=i; if(/^type$/.test(c)) iT=i; if(/^(state|[ée]tat|statut)$/.test(c)) iSt=i; if(/^(fee|fees|frais)$/.test(c)) iF=i; if(/^(product|produit)$/.test(c)) iP=i; });
+      if(/libell|label|description|d[ée]tail|intitul|nom|payee|partner|counterparty|merchant|b[ée]n[ée]ficiaire|commer[çc]ant|wording/.test(c)&&!/date|account|iban|num[ée]ro/.test(c)&&iL<0) iL=i;
+      if(/solde|balance/.test(c)&&iS<0) iS=i; if(/montant|amount/.test(c)&&!/solde|balance|orig|franc|foreign|devise|[ée]trang|exchange/.test(c)&&(iM<0||/^(montant|amount|total amount)\b/.test(c)||/eur/.test(c))) iM=i; if(/d[ée]bit|money out|paid out|sortie|retrait|withdrawal|d[ée]pense/.test(c)&&iDe<0) iDe=i; if(/cr[ée]dit|money in|paid in|entr[ée]e|deposit|versement re/.test(c)&&iC<0) iC=i; if(/^type$/.test(c)) iT=i; if(/^(state|[ée]tat|statut)$/.test(c)) iSt=i; if(/^(fee|fees|frais)$/.test(c)) iF=i; if(/^(product|produit)$/.test(c)) iP=i; });
     body=rows.slice(h+1);
   } else {
     body=rows; const w=Math.max(...rows.map(r=>r.length)); let best=0;
@@ -364,7 +392,7 @@ function parseBank(text){
     if(iSt>=0&&/revert|declin|fail|annul|rejet|refus|pending|en attente/i.test(r[iSt]||'')) return;
     if(iP>=0&&/saving|[ée]pargne|deposit|coffre|vault/i.test(r[iP]||'')) return;
     if(iM>=0) a=pNum(r[iM]); else { const de=pNum(r[iDe]), cr=pNum(r[iC]); a=(isNaN(cr)?0:Math.abs(cr))-(isNaN(de)?0:Math.abs(de)) }
-    if(isNaN(a)) return; if(iF>=0){const fe=pNum(r[iF]); if(!isNaN(fe)&&fe) a-=Math.abs(fe)} if(a===0) return; const so=iS>=0?pNum(r[iS]):NaN; out.push({date:d,libelle:(r[iL]||'').replace(/\s+/g,' ').slice(0,120),montant:Math.round(a*100)/100,solde:isNaN(so)?null:so,type:iT>=0?(r[iT]||''):''}) });
+    if(isNaN(a)) return; if(!String(r[iL]||'').trim()) return; if(iF>=0){const fe=pNum(r[iF]); if(!isNaN(fe)&&fe) a-=Math.abs(fe)} if(a===0) return; const so=iS>=0?pNum(r[iS]):NaN; out.push({date:d,libelle:(r[iL]||'').replace(/\s+/g,' ').slice(0,120),montant:Math.round(a*100)/100,solde:isNaN(so)?null:so,type:iT>=0?(r[iT]||''):''}) });
   return out;
 }
 const FK_NOISE=new Set(['cb','carte','prlv','prelevement','prelevmt','vir','virement','inst','sepa','paiement','paiemt','achat','fact','facture','psc','du','de','le','la','les','des','a','au','ca','sa','sas','sarl','fr','europe','ref','motif']);
@@ -379,7 +407,7 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
 function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const fk=fullKey(l), rg=cfg.regles||{}; if(fk&&rg['f:'+fk]){ const rc=rg['f:'+fk], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const k=ruleKey(l); if(k&&rg[k]){ const rc=rg[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
-  for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&a>0) continue; return c } }
+  for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&c!=='interne'&&a>0) continue; return c } }
   return a>0?'revenu':'autre' }
 const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
 const opKey=(src,x)=>src+'|'+x.date+'|'+x.libelle+'|'+Number(x.montant);
@@ -659,7 +687,7 @@ function aboRegular(os){ const d=os.map(o=>new Date(o.date+'T12:00:00')); const 
   const mean=days.reduce((a,b)=>a+b,0)/days.length, sd=Math.sqrt(days.reduce((a,b)=>a+(b-mean)**2,0)/days.length);
   return {okGap,sd} }
 function detectAbos(){ const groups={}; let ref='';
-  Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>{ if(o.date>ref) ref=o.date; const c=CAT[o.cat]; if(o.montant>=0||!c||c.g==='interne'||c.g==='epargne'||c.g==='revenu'||o.cat==='courses'||o.cat==='sorties') return;
+  Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>{ if(o.date>ref) ref=o.date; const c=CAT[o.cat]; if(o.montant>=0||!c||c.g==='interne'||c.g==='epargne'||c.g==='revenu'||c.g==='pro'||isProAcc(srcOf(o))||o.cat==='courses'||o.cat==='sorties'||o.cat==='papa'||o.cat==='logement'&&/loyer/i.test(o.libelle)) return;
     const k=aboKey(o.libelle); if(!k) return; (groups[k]=groups[k]||[]).push(o) }));
   const ign=new Set(cfg.aboIgnore||[]), refD=ref?new Date(ref+'T12:00:00'):new Date(), out=[];
   Object.entries(groups).forEach(([k,ops])=>{ const brand=k.startsWith('B:');
@@ -808,9 +836,9 @@ function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg
   let comptes=wz.comptes.filter(c=>String(c.nom).trim()).map(c=>({...c,nom:String(c.nom).trim(),montant:wzN(c.montant),type:c.type==='courant'?'courant':'epargne',pro:c.type==='courant'&&wzIndep()&&!!c.pro,dispo:c.type==='courant'?false:(c.dispo||isLivret(c.nom))}));
   if(!comptes.some(isCourant)) comptes.unshift({id:uid(),nom:'Compte courant',type:'courant',montant:0,dispo:false});
   cfg.comptes=comptes;
-  const today=new Date(); cfg.objectifs=cfg.objectifs||[];
+  const today=new Date(); cfg.objectifs=cfg.objectifs||[]; let nEp=0;
   wz.obj.forEach(o=>{ if(!o.nom.trim()&&!wzN(o.cible)) return; const d=new Date(today.getFullYear(),today.getMonth()+o.h,today.getDate());
-    const ca=o.type==='ca'&&wzIndep(), bf=o.type==='benef'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||(bf?'Bénéfice mensuel':(ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:ca||bf?'':(comptes.some(c=>!isCourant(c))?'__all':''),...(ca?{type:'ca',debut:ymd(today).slice(0,8)+'01'}:bf?{type:'benef'}:{})}) });
+    const ca=o.type==='ca'&&wzIndep(), bf=o.type==='benef'&&wzIndep(); cfg.objectifs.push({id:uid(),nom:o.nom.trim()||(bf?'Bénéfice mensuel':(ca?'Chiffre d’affaires':'Objectif')+' à '+(o.h===12?'1 an':o.h+' mois')),cible:wzN(o.cible),actuel:0,echeance:ymd(d),compteId:ca||bf?'':(nEp++===0&&comptes.some(c=>!isCourant(c))?(comptes.some(c=>c.dispo)?'__dispo':'__all'):''),...(ca?{type:'ca',debut:ymd(today).slice(0,8)+'01'}:bf?{type:'benef'}:{})}) });
   if(!(cfg.virements||[]).length&&b.epargne>0){ const e=comptes.find(c=>!isCourant(c)); cfg.virements=[{nom:'Épargne'+(e?' · '+e.nom:''),montant:b.epargne}] }
   cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
@@ -820,7 +848,7 @@ function wzLive(){ if(!wz) return; const t=wzTotals(), sg=wzSuggest(); const set
   const pl=wz.plaisir===''?sg.pl:wzN(wz.plaisir), ep=wz.epargne===''?sg.ep:wzN(wz.epargne), r=t.reste-pl-ep; set('r4',eur(r),r<0); const w=document.querySelector('[data-live="r4warn"]'); if(w) w.hidden=!(r<0) }
 
 /* ---------- rendering ---------- */
-function render(){
+function render(){ now=new Date();
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
   if(!ready){ return }
   if(!db){ return }
@@ -830,7 +858,7 @@ function render(){
   const np=nextPay(), today=new Date(now.getFullYear(),now.getMonth(),now.getDate()), dd=Math.round((np-today)/864e5);
   document.getElementById('sub').textContent=`Salaire le ${JP()} du mois · `+(dd>0?`prochaine paie dans ${dd} jour${dd>1?'s':''} (${fmtD(np)})`:'paie aujourd’hui : fais tes virements');
   const showWz=needsWizard();
-  document.querySelector('.tabs').hidden=showWz; document.querySelector('.monthpick').hidden=showWz;
+  document.querySelector('.tabs').hidden=showWz; document.querySelector('.monthpick').hidden=showWz; document.getElementById('sub').style.visibility=showWz?'hidden':''; document.getElementById('askopen').hidden=showWz;
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
@@ -860,10 +888,10 @@ function viewDash(){
   ${viewReminder()}
   ${cfg.onboardSkipped&&!cfg.onboarded?`<section class="card" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--ok-bg)"><div style="display:flex;flex-direction:column;gap:2px"><strong>Ton cockpit n'est pas encore réglé</strong><span class="muted" style="font-size:14px">2 minutes de questions pour avoir des chiffres et des objectifs qui te correspondent.</span></div><button class="btn" data-act="wizard">Compléter mon profil</button></section>`:''}
   <section class="kpis" aria-label="Indicateurs clés">
-    <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} comptes</div></div>
-    <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:'Matelas de sécurité atteint'}</div></div>
+    <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} compte${comptes.length>1?'s':''}</div></div>
+    <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:seuil>0?'Matelas de sécurité atteint':'Fixe ton matelas visé dans Réglages'}</div></div>
     <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
-    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
+    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${pb?'':'<strong>Fixe ton budget plaisir dans Réglages.</strong> '}${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
   ${viewPlacer()}
   <div class="row">
@@ -877,7 +905,7 @@ function viewDash(){
         const pill=a>=c?'<span class="pill ok">Atteint</span>':paies===0&&o.echeance?'<span class="pill warn">Échéance passée</span>':'';
         return `<div class="goal"><div class="head"><span style="font-weight:600">${esc(o.nom)} ${pill}</span><span class="num">${eur(a)} / ${eur(c)}</span></div>
         <div class="bar"><span style="width:${p}%"></span></div>
-        <div class="muted" style="font-size:13px">${a>=c?'Objectif tenu.':o.echeance?`Reste ${eur(rest)} · ${paies} paie${paies>1?'s':''} avant le ${new Date(o.echeance).toLocaleDateString('fr-FR')} → <strong class="num">${eur(paies?Math.ceil(rest/paies):rest)}</strong> par paie`:`Reste ${eur(rest)}`}${o.type==='ca'?' · chiffre d’affaires encaissé depuis le '+new Date((o.debut||'')+'T12:00:00').toLocaleDateString('fr-FR'):o.compteId==='__all'?' · suit toute ton épargne':o.compteId?' · suit le solde du compte':' · montant à mettre à jour dans Réglages'}</div></div>`}).join(''):'<div class="empty">Aucun objectif. Ajoute-en un dans Réglages.</div>'}
+        <div class="muted" style="font-size:13px">${a>=c?'Objectif tenu.':o.echeance?`Reste ${eur(rest)} · ${paies} paie${paies>1?'s':''} avant le ${new Date(o.echeance).toLocaleDateString('fr-FR')} → <strong class="num">${eur(paies?Math.ceil(rest/paies):rest)}</strong> par paie`:`Reste ${eur(rest)}`}${o.type==='ca'?' · chiffre d’affaires encaissé depuis le '+new Date((o.debut||'')+'T12:00:00').toLocaleDateString('fr-FR'):o.compteId==='__all'?' · suit toute ton épargne':o.compteId==='__dispo'?' · suit ton épargne disponible':o.compteId?' · suit le solde du compte':' · montant à mettre à jour dans Réglages'}</div></div>`}).join(''):'<div class="empty">Aucun objectif. Ajoute-en un dans Réglages.</div>'}
     </section>
     <section class="card side" aria-labelledby="h-pat">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="hrow"><h2 id="h-pat">Comptes</h2>${ib('k-acc')}</div><span class="muted" style="font-size:13px">Saisis un solde une fois, tes relevés font le reste</span></div>
@@ -906,7 +934,7 @@ function budgetLines(s,compact){
   CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne'&&c.g!=='pro'&&c.id!=='epargne').forEach(c=>{ if((b[c.id]||0)>0||s.by[c.id]>0) lines.push({nom:c.nom,val:s.by[c.id],bud:Number(b[c.id])||0}) });
   return lines.map(l=>{ const over=l.inverse?false:l.bud>0&&l.val>l.bud; const short=l.inverse&&l.bud>0&&l.val<l.bud;
     const p=l.bud>0?Math.min(100,l.val/l.bud*100):(l.val>0?100:0);
-    return `<div class="catline"><div class="head"><span>${esc(l.nom)}</span><span class="num ${over?'bad':''}">${eur(l.val)}${l.bud?` / ${eur(l.bud)}`:' · sans budget'}</span></div><div class="bar ${over||(!l.bud&&l.val>0&&!l.inverse)?'over':''}"><span style="width:${p}%"></span></div>${short&&!compact?`<div class="muted" style="font-size:13px">Il manque ${eur(l.bud-l.val)} d'épargne ce mois-ci.</div>`:''}</div>` }).join('');
+    return `<div class="catline"><div class="head"><span>${esc(l.nom)}</span><span class="num ${over?'bad':''}">${eur(l.val)}${l.bud?` / ${eur(l.bud)}`:' · sans budget'}</span></div><div class="bar ${over?'over':''}"><span style="width:${l.bud>0?p:0}%"></span></div>${short&&!compact?`<div class="muted" style="font-size:13px">Il manque ${eur(l.bud-l.val)} d'épargne ce mois-ci.</div>`:''}</div>` }).join('');
 }
 
 function viewHist(){
@@ -933,7 +961,8 @@ function viewRel(){
   if(relSrc!=='all'&&!curs.some(c=>c.id===relSrc)&&!savAccs.some(c=>c.id===relSrc)) relSrc='all';
   const isSav=savAccs.some(c=>c.id===relSrc);
   const allAcc=cfg.comptes||[]; if(!allAcc.some(c=>c.id===impAcc)) impAcc=(curs[0]||allAcc[0]||{}).id||'';
-  const ops=[...m.ops].filter(o=>relSrc==='all'||srcOf(o)===relSrc).sort((a,b)=>a.date<b.date?1:-1);
+  const opsSrc=[...m.ops].filter(o=>relSrc==='all'||srcOf(o)===relSrc), nAutre=opsSrc.filter(o=>o.cat==='autre').length; const ops=opsSrc.filter(o=>!relCat||o.cat===relCat).sort((a,b)=>a.date<b.date?1:-1);
+  const triage=relCat?`<div class="triage"><span>Affichage : seulement « Autre / imprévu » (${ops.length})</span><button class="btn ghost small" data-act="relcat" data-cat="">Tout afficher</button></div>`:nAutre?`<div class="triage"><span><strong>${nAutre} opération${nAutre>1?'s':''} en « Autre / imprévu »</strong> ce mois-ci. Classe-les une fois : toutes celles au même libellé suivront, ce mois-ci et les prochains.</span><button class="btn small" data-act="relcat" data-cat="autre">Les trier</button></div>`:'';
   const savOps=isSav?(accHist[relSrc].ops||[]).filter(o=>String(o.date).slice(0,7)===cur).sort((a,b)=>a.date<b.date?1:-1):[];
   const savName=isSav?((cfg.comptes||[]).find(c=>c.id===relSrc)||{}).nom:'';
   const srcCount=k=>m.ops.filter(o=>srcOf(o)===k).length;
@@ -967,12 +996,13 @@ function viewRel(){
       <div class="f"><label class="lbl" for="a-src">Payé avec</label><select id="a-src">${curs.map((c,i)=>`<option value="${c.id}" ${(relSrc===c.id||(relSrc==='all'&&i===0))?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
+    ${triage}
     ${ops.length?`<div class="tablebox"><table class="ops"><thead><tr><th>Date</th><th>Libellé</th>${relSrc==='all'?'<th>Compte</th>':''}<th>Catégorie</th><th class="r">Montant</th><th><span hidden>Supprimer</span></th></tr></thead><tbody>
-    ${ops.map(o=>`<tr${o.cat==='interne'?' style="opacity:.6"':''}><td class="num" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}</td><td style="min-width:160px">${esc(o.libelle)}</td>${relSrc==='all'?`<td><span class="pill">${esc(srcName(srcOf(o)))}</span></td>`:''}
-      <td><label for="cat-${o.id}" hidden>Catégorie de ${esc(o.libelle)}</label><select id="cat-${o.id}" data-act="cat" data-id="${o.id}">${opts(o.cat)}</select></td>
-      <td class="r num ${o.montant>0?'good':''}" style="white-space:nowrap">${o.montant>0?'+':''}${eur(o.montant,2)}</td>
-      <td><button class="iconbtn" data-act="del" data-id="${o.id}" aria-label="Supprimer ${esc(o.libelle)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>`).join('')}
-    </tbody></table></div>`:`<div class="empty">Aucune opération en ${esc(periodLabel(cur))}. Importe ton CSV ou ajoute une dépense ci-dessus.</div>`}`}
+    ${ops.map(o=>`<tr${o.cat==='interne'?' style="opacity:.6"':''}><td class="num c-date" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}</td><td class="c-lib" style="min-width:160px">${esc(o.libelle)}</td>${relSrc==='all'?`<td class="c-src"><span class="pill">${esc(srcName(srcOf(o)))}</span></td>`:''}
+      <td class="c-cat"><label for="cat-${o.id}" hidden>Catégorie de ${esc(o.libelle)}</label><select id="cat-${o.id}" data-act="cat" data-id="${o.id}">${opts(o.cat)}</select></td>
+      <td class="r num c-amt ${o.montant>0?'good':''}" style="white-space:nowrap">${o.montant>0?'+':''}${eur(o.montant,2)}</td>
+      <td class="c-del"><button class="iconbtn" data-act="del" data-id="${o.id}" aria-label="Supprimer ${esc(o.libelle)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>`).join('')}
+    </tbody></table></div>`:relCat?`<div class="empty">Plus rien à classer en ${esc(periodLabel(cur))}.</div>`:`<div class="empty">Aucune opération en ${esc(periodLabel(cur))}. Importe ton CSV ou ajoute une dépense ci-dessus.</div>`}`}
   </section>
   <section class="side" style="display:flex;flex-direction:column;gap:16px;min-width:0">
     <div class="hero" style="flex-direction:column;align-items:stretch;gap:10px">
@@ -1028,7 +1058,7 @@ function viewSet(){
       <div class="f" style="display:flex;flex-direction:column;gap:4px;flex:1 1 180px"><label class="lbl" for="o-n-${o.id}">Objectif</label><input type="text" id="o-n-${o.id}" value="${esc(o.nom)}" data-act="goal" data-id="${o.id}" data-k="nom"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-c-${o.id}">Cible</label><input class="amount" id="o-c-${o.id}" inputmode="decimal" value="${o.cible}" data-act="goal" data-id="${o.id}" data-k="cible"></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-e-${o.id}">Échéance</label><input type="date" id="o-e-${o.id}" value="${o.echeance||''}" data-act="goal" data-id="${o.id}" data-k="echeance"></div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option><option value="__all" ${!o.type&&o.compteId==='__all'?'selected':''}>Toute mon épargne</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${!o.type&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'||o.type==='benef'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé (total)</option><option value="__benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option>`:''}</select></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-l-${o.id}">Suivi</label><select id="o-l-${o.id}" data-act="goal" data-id="${o.id}" data-k="compteId"><option value="">Montant saisi</option><option value="__dispo" ${!o.type&&o.compteId==='__dispo'?'selected':''}>Mon épargne disponible</option><option value="__all" ${!o.type&&o.compteId==='__all'?'selected':''}>Toute mon épargne</option>${(cfg.comptes||[]).map(c=>`<option value="${c.id}" ${!o.type&&o.compteId===c.id?'selected':''}>Solde ${esc(c.nom)}</option>`).join('')}${isIndep()||o.type==='ca'||o.type==='benef'?`<option value="__ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires encaissé (total)</option><option value="__benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option>`:''}</select></div>
       ${o.type==='ca'?`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-d-${o.id}">Compté depuis</label><input type="date" id="o-d-${o.id}" value="${o.debut||''}" data-act="goal" data-id="${o.id}" data-k="debut"></div>`:''}
       ${o.compteId||o.type?'':`<div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="o-a-${o.id}">Atteint</label><input class="amount" id="o-a-${o.id}" inputmode="decimal" value="${o.actuel||0}" data-act="goal" data-id="${o.id}" data-k="actuel"></div>`}
       <button class="iconbtn" data-act="goaldel" data-id="${o.id}" aria-label="Supprimer ${esc(o.nom)}" style="align-self:flex-end">✕</button></div>`).join('')}
@@ -1065,6 +1095,7 @@ document.addEventListener('click',e=>{
   else if(a==='viradd'){(cfg.virements=cfg.virements||[]).push({nom:'Nouveau virement',montant:0});saveCfg();render()}
   else if(a==='virdel'){cfg.virements.splice(+t.dataset.i,1);saveCfg();render()}
   else if(a==='accadd'){const ty=t.dataset.type||'epargne';(cfg.comptes=cfg.comptes||[]).push({id:uid(),nom:ty==='courant'?'Nouvelle banque':'Nouveau livret',type:ty,montant:0,dispo:false});saveCfg();render();const ins=document.querySelectorAll('[data-act="accset"][data-k="nom"]');if(ins.length){ins[ins.length-1].focus();ins[ins.length-1].select()}}
+  else if(a==='relcat'){relCat=t.dataset.cat||''; render()}
   else if(a==='info'){const id=t.dataset.id; if(openInfo.has(id)) openInfo.delete(id); else openInfo.add(id); render()}
   else if(a==='anaN'){anaN=+t.dataset.n; render()}
   else if(a==='icsadd'){icsDownload()}
@@ -1188,7 +1219,7 @@ function loadAll(){
   db.collection('comptes').onSnapshot(q=>{ accHist={}; q.docs.forEach(d=>{accHist[d.id]=JSON.parse(JSON.stringify(d.data()))}); render() },()=>{});
   db.collection('mois').onSnapshot(q=>{ q.docs.forEach(d=>{ months[d.id]=JSON.parse(JSON.stringify(d.data())) }); monthsLoaded=true; migrate(); render() },()=>{monthsLoaded=true;render()});
 }
-function showAuth(on){ document.getElementById('askopen').hidden=on; document.getElementById('auth').hidden=!on; $app.hidden=on; document.querySelector('.tabs').hidden=on; document.querySelector('.monthpick').hidden=on; document.getElementById('who').hidden=on }
+function showAuth(on){ document.getElementById('askopen').hidden=on; document.getElementById('sub').style.visibility=on?'hidden':''; document.getElementById('auth').hidden=!on; $app.hidden=on; document.querySelector('.tabs').hidden=on; document.querySelector('.monthpick').hidden=on; document.getElementById('who').hidden=on }
 let signup=false;
 document.getElementById('au-switch').addEventListener('click',()=>{ signup=!signup; document.getElementById('auth-title').textContent=signup?'Créer un compte':'Connexion'; document.getElementById('au-go').textContent=signup?'Créer mon compte':'Se connecter'; document.getElementById('au-switch').textContent=signup?'J’ai déjà un compte : me connecter':'Pas encore de compte ? Créer un compte'; document.getElementById('au-pass').autocomplete=signup?'new-password':'current-password'; document.getElementById('au-msg').textContent='' });
 document.getElementById('authform').addEventListener('submit',async e=>{ e.preventDefault(); const email=document.getElementById('au-mail').value.trim(), password=document.getElementById('au-pass').value, msg=document.getElementById('au-msg');
@@ -1198,10 +1229,17 @@ document.getElementById('authform').addEventListener('submit',async e=>{ e.preve
   if(signup&&!r.data.session){ msg.textContent='Compte créé. Clique sur le lien reçu par e-mail pour l’activer, puis reviens te connecter.'; return }
   msg.textContent='' });
 document.getElementById('logout').addEventListener('click',async()=>{ await sb.auth.signOut() });
+document.getElementById('au-forgot').addEventListener('click',async()=>{ const email=document.getElementById('au-mail').value.trim(), msg=document.getElementById('au-msg');
+  if(!email){ msg.textContent='Tape d’abord ton e-mail ci-dessus, puis reclique sur « Mot de passe oublié ? ».'; document.getElementById('au-mail').focus(); return }
+  msg.textContent='Envoi…'; const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  msg.textContent=r.error?(/rate|seconds/i.test(r.error.message)?'Trop de demandes : réessaie dans quelques minutes.':'Erreur : '+r.error.message):'Si un compte existe avec cet e-mail, tu viens de recevoir un lien pour choisir un nouveau mot de passe.' });
+document.getElementById('recovform').addEventListener('submit',async e=>{ e.preventDefault(); const pw=document.getElementById('rc-pass').value, msg=document.getElementById('rc-msg'); msg.textContent='Enregistrement…';
+  const r=await sb.auth.updateUser({password:pw}); if(r.error){ msg.textContent='Erreur : '+r.error.message; return }
+  document.getElementById('recov').hidden=true; toast('Mot de passe modifié.') });
 (function boot(){
   if(!window.supabase||!SUPABASE_URL){ ready=true; $app.innerHTML='<div class="empty">Configuration manquante : renseigne SUPABASE_URL et SUPABASE_ANON_KEY en bas du fichier index.html.</div>'; return }
   sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-  sb.auth.onAuthStateChange((ev,session)=>{ const u=session&&session.user;
+  sb.auth.onAuthStateChange((ev,session)=>{ const u=session&&session.user; if(ev==='PASSWORD_RECOVERY') document.getElementById('recov').hidden=false;
     if(u&&u.id!==uidCur){ uidCur=u.id; document.getElementById('who-mail').textContent=u.email||''; showAuth(false); $app.innerHTML='<div class="empty">Chargement de tes données…</div>'; loadAll() }
     else if(!u){ uidCur=null; db=null; showAuth(true) } });
 })();
