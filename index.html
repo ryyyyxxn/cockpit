@@ -302,7 +302,7 @@ const srcName=id=>{const c=((cfg&&cfg.comptes)||[]).find(x=>x.id===id); return c
 const deacc=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 const COLORS=['var(--ink)','var(--accent)','var(--bar2)','var(--warn)','var(--muted)','var(--line)'];
 
-let relCat='', impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
+let relCat='', relScope='mois', impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
 const $app=document.getElementById('app'), $month=document.getElementById('month');
 let now=new Date();
 const JP=()=>{const j=Math.round(Number(cfg&&cfg.jourPaie)||27);return Math.min(31,Math.max(1,j))};
@@ -569,7 +569,7 @@ function viewAna(){
   </section>
   <section class="card side">${ht('h2','i-cat','Où part ton argent')}${ip('i-cat','Répartition de toutes tes dépenses perso de la période par catégorie, en part du total, avec la moyenne par mois.')}
     <div class="split" role="img" aria-label="Répartition des dépenses">${cats.slice(0,6).map(([c,v],i)=>`<span style="width:${v/totDep*100}%;background:${COL[i%COL.length]}" title="${esc(CAT[c].nom)}"></span>`).join('')}</div>
-    ${cats.slice(0,8).map(([c,v],i)=>`<div class="catline"><div class="head"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${COL[i%COL.length]}"></span>${esc(CAT[c].nom)}</span><span class="num">${Math.round(v/totDep*100)} % · ${eur(v/n)}/mois</span></div></div>`).join('')}
+    ${cats.slice(0,8).map(([c,v],i)=>`<div class="catline"><div class="head"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${COL[i%COL.length]}"></span><button class="linkbtn" data-act="relcat" data-cat="${c}" data-scope="annee" data-goto="1" title="Voir les opérations">${esc(CAT[c].nom)}</button></span><span class="num">${Math.round(v/totDep*100)} % · ${eur(v/n)}/mois</span></div></div>`).join('')}
   </section>
   </div>
   <div class="row">
@@ -988,18 +988,29 @@ function viewHist(){
   </svg></div>`;
 }
 
+function findOp(id){ for(const k of Object.keys(months)){ const o=(months[k].ops||[]).find(x=>x.id===id); if(o) return {k,o} } return null }
 function viewRel(){
   const m=getMonth(cur), s=stats(cur);
   const savAccs=epargnes().filter(c=>accHist[c.id]&&(accHist[c.id].ops||[]).length), curs=courants();
   if(relSrc!=='all'&&!curs.some(c=>c.id===relSrc)&&!savAccs.some(c=>c.id===relSrc)) relSrc='all';
   const isSav=savAccs.some(c=>c.id===relSrc);
   const allAcc=cfg.comptes||[]; if(!allAcc.some(c=>c.id===impAcc)) impAcc=(curs[0]||allAcc[0]||{}).id||'';
-  const opsSrc=[...m.ops].filter(o=>relSrc==='all'||srcOf(o)===relSrc), nAutre=opsSrc.filter(o=>o.cat==='autre').length; const ops=opsSrc.filter(o=>!relCat||o.cat===relCat).sort((a,b)=>a.date<b.date?1:-1);
-  const triage=relCat?`<div class="triage"><span>Affichage : seulement « Autre / imprévu » (${ops.length})</span><button class="btn ghost small" data-act="relcat" data-cat="">Tout afficher</button></div>`:nAutre?`<div class="triage"><span><strong>${nAutre} opération${nAutre>1?'s':''} en « Autre / imprévu »</strong> ce mois-ci. Classe-les une fois : toutes celles au même libellé suivront, ce mois-ci et les prochains.</span><button class="btn small" data-act="relcat" data-cat="autre">Les trier</button></div>`:'';
+  const opsSrc=[...m.ops].filter(o=>relSrc==='all'||srcOf(o)===relSrc), nAutre=opsSrc.filter(o=>o.cat==='autre').length;
+  const yKeys=Array.from({length:12},(_,i)=>addMonths(cur,-i)), wide=!!relCat&&relScope==='annee';
+  const pool=wide?yKeys.flatMap(k=>((months[k]||{}).ops||[])).filter(o=>relSrc==='all'||srcOf(o)===relSrc):opsSrc;
+  const ops=pool.filter(o=>!relCat||o.cat===relCat).sort((a,b)=>a.date<b.date?1:-1);
+  const catCount=id=>opsSrc.filter(o=>o.cat===id).length;
+  const catSel=`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-cat">Catégorie</label><select id="rel-cat"><option value="">Toutes les catégories</option>${CATS.filter(c=>c.g!=='pro'||isIndep()).map(c=>`<option value="${c.id}" ${relCat===c.id?'selected':''}>${esc(c.nom)}${catCount(c.id)?' ('+catCount(c.id)+')':''}</option>`).join('')}</select></div>`+(relCat?`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-scope">Période</label><select id="rel-scope"><option value="mois" ${relScope==='mois'?'selected':''}>${esc(periodLabel(cur))}</option><option value="annee" ${relScope==='annee'?'selected':''}>12 derniers mois</option></select></div>`:'');
+  let catSum='';
+  if(relCat){ const tot=ops.reduce((a,o)=>a-(+o.montant||0),0), nm=wide?yKeys.filter(k=>months[k]&&(months[k].ops||[]).length).length||1:1;
+    const g={}; ops.forEach(o=>{ const k=fullKey(o.libelle)||o.libelle; const x=g[k]||(g[k]={nom:(fullKey(o.libelle)?fullKey(o.libelle).split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' '):o.libelle),t:0,n:0}); x.t-=+o.montant||0; x.n++ });
+    const top=Object.values(g).sort((a,b)=>b.t-a.t).slice(0,5);
+    catSum=`<div class="triage" style="flex-direction:column;align-items:stretch"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center"><span><strong>${esc((CAT[relCat]||{}).nom||relCat)} · ${wide?'12 derniers mois':esc(periodLabel(cur))} : ${eur(tot)}</strong> en ${ops.length} opération${ops.length>1?'s':''}${wide?` · soit ${eur(tot/nm)} par mois`:''}</span><button class="btn ghost small" data-act="relcat" data-cat="">Tout afficher</button></div>${top.length>1?`<div style="display:flex;flex-direction:column;gap:4px">${top.map(x=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px"><span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nom)}${x.n>1?` <span class="muted">· ${x.n} fois</span>`:''}</span><span class="num" style="flex:none;white-space:nowrap">${eur(x.t)}</span></div>`).join('')}</div>`:''}</div>` }
+  const triage=relCat?catSum:nAutre?`<div class="triage"><span><strong>${nAutre} opération${nAutre>1?'s':''} en « Autre / imprévu »</strong> ce mois-ci. Classe-les une fois : toutes celles au même libellé suivront, ce mois-ci et les prochains.</span><button class="btn small" data-act="relcat" data-cat="autre">Les trier</button></div>`:'';
   const savOps=isSav?(accHist[relSrc].ops||[]).filter(o=>String(o.date).slice(0,7)===cur).sort((a,b)=>a.date<b.date?1:-1):[];
   const savName=isSav?((cfg.comptes||[]).find(c=>c.id===relSrc)||{}).nom:'';
   const srcCount=k=>m.ops.filter(o=>srcOf(o)===k).length;
-  const filterSel=`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-src">Compte affiché</label><select id="rel-src"><option value="all" ${relSrc==='all'?'selected':''}>Dépenses : tous les comptes (${m.ops.length})</option>${curs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)} (${srcCount(c.id)})</option>`).join('')}${savAccs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>`;
+  const filterSel=`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-src">Compte affiché</label><select id="rel-src"><option value="all" ${relSrc==='all'?'selected':''}>Dépenses : tous les comptes (${m.ops.length})</option>${curs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)} (${srcCount(c.id)})</option>`).join('')}${savAccs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>`+catSel;
   const opts=sel=>CATS.filter(c=>c.g!=='pro'||isIndep()||c.id===sel).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nom)}</option>`).join('');
   const lockedNote=m.cloture?`<div class="locked">Mois clôturé. Bilan figé.</div>`:'';
   return `<div style="display:flex;flex-direction:column;gap:20px">
@@ -1019,7 +1030,7 @@ function viewRel(){
   </section>
   <div class="row">
   <section class="card grow" aria-labelledby="h-ops">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="h-ops">Opérations · ${esc(periodLabel(cur))}</h2>${filterSel}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 id="h-ops">Opérations · ${relCat&&relScope==='annee'?'12 derniers mois':esc(periodLabel(cur))}</h2>${filterSel}</div>
     ${isSav?`${savOps.length?`<div class="tablebox"><table><thead><tr><th>Date</th><th>Libellé</th><th class="r">Montant</th><th class="r">Solde</th></tr></thead><tbody>${savOps.map(o=>`<tr><td class="num" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}</td><td style="min-width:160px">${esc(o.libelle)}</td><td class="r num ${o.montant>0?'good':'bad'}" style="white-space:nowrap">${o.montant>0?'+':''}${eur(o.montant,2)}</td><td class="r num">${o.solde!=null?eur(o.solde,2):'—'}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Aucun mouvement sur ${esc(savName)} en ${esc(periodLabel(cur))}.</div>`}<div class="muted" style="font-size:13px">Les mouvements d'épargne sont suivis à part : ils ne comptent pas dans tes dépenses.</div>`:`
     <form class="form" id="addform" aria-label="Ajouter une opération">
       <div class="f"><label class="lbl" for="a-date">Date</label><input type="date" id="a-date" value="${ymd(periodOf(ymd(now))===cur?now:periodBounds(cur).start)}" required></div>
@@ -1031,11 +1042,11 @@ function viewRel(){
     </form>
     ${triage}
     ${ops.length?`<div class="tablebox"><table class="ops"><thead><tr><th>Date</th><th>Libellé</th>${relSrc==='all'?'<th>Compte</th>':''}<th>Catégorie</th><th class="r">Montant</th><th><span hidden>Supprimer</span></th></tr></thead><tbody>
-    ${ops.map(o=>`<tr${o.cat==='interne'?' style="opacity:.6"':''}><td class="num c-date" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}</td><td class="c-lib" style="min-width:160px">${esc(o.libelle)}</td>${relSrc==='all'?`<td class="c-src"><span class="pill">${esc(srcName(srcOf(o)))}</span></td>`:''}
+    ${ops.map(o=>`<tr${o.cat==='interne'?' style="opacity:.6"':''}><td class="num c-date" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}${wide?'/'+o.date.slice(2,4):''}</td><td class="c-lib" style="min-width:160px">${esc(o.libelle)}</td>${relSrc==='all'?`<td class="c-src"><span class="pill">${esc(srcName(srcOf(o)))}</span></td>`:''}
       <td class="c-cat"><label for="cat-${o.id}" hidden>Catégorie de ${esc(o.libelle)}</label><select id="cat-${o.id}" data-act="cat" data-id="${o.id}">${opts(o.cat)}</select></td>
       <td class="r num c-amt ${o.montant>0?'good':''}" style="white-space:nowrap">${o.montant>0?'+':''}${eur(o.montant,2)}</td>
       <td class="c-del"><button class="iconbtn" data-act="del" data-id="${o.id}" aria-label="Supprimer ${esc(o.libelle)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>`).join('')}
-    </tbody></table></div>`:relCat?`<div class="empty">Plus rien à classer en ${esc(periodLabel(cur))}.</div>`:`<div class="empty">Aucune opération en ${esc(periodLabel(cur))}. Importe ton CSV ou ajoute une dépense ci-dessus.</div>`}`}
+    </tbody></table></div>`:relCat?`<div class="empty">${relCat==='autre'?'Plus rien à classer':'Aucune opération dans cette catégorie'} ${wide?'sur 12 mois':'en '+esc(periodLabel(cur))}.</div>`:`<div class="empty">Aucune opération en ${esc(periodLabel(cur))}. Importe ton CSV ou ajoute une dépense ci-dessus.</div>`}`}
   </section>
   <section class="side" style="display:flex;flex-direction:column;gap:16px;min-width:0">
     <div class="hero" style="flex-direction:column;align-items:stretch;gap:10px">
@@ -1116,7 +1127,7 @@ document.addEventListener('click',e=>{
   const a=t.dataset.act;
   if(a==='goto'){tab=t.dataset.tab;render();window.scrollTo({top:0})}
   else if(a==='pick'){document.getElementById('csv').click()}
-  else if(a==='del'){const m=getMonth(cur);m.ops=m.ops.filter(o=>o.id!==t.dataset.id);saveMonth(cur);render()}
+  else if(a==='del'){const f=findOp(t.dataset.id);if(f){months[f.k].ops=months[f.k].ops.filter(o=>o.id!==t.dataset.id);saveMonth(f.k)}render()}
   else if(a==='close'){const m=getMonth(cur);const note=document.getElementById('note').value.trim();
     if(!m.ops.length){toast('Saisis d’abord tes opérations du mois.');return}
     if(!note){toast('Écris d’abord la dépense à justifier : pas de clôture sans ça.');document.getElementById('note').focus();return}
@@ -1128,7 +1139,7 @@ document.addEventListener('click',e=>{
   else if(a==='viradd'){(cfg.virements=cfg.virements||[]).push({nom:'Nouveau virement',montant:0});saveCfg();render()}
   else if(a==='virdel'){cfg.virements.splice(+t.dataset.i,1);saveCfg();render()}
   else if(a==='accadd'){const ty=t.dataset.type||'epargne';(cfg.comptes=cfg.comptes||[]).push({id:uid(),nom:ty==='courant'?'Nouvelle banque':'Nouveau livret',type:ty,montant:0,dispo:false});saveCfg();render();const ins=document.querySelectorAll('[data-act="accset"][data-k="nom"]');if(ins.length){ins[ins.length-1].focus();ins[ins.length-1].select()}}
-  else if(a==='relcat'){relCat=t.dataset.cat||''; render()}
+  else if(a==='relcat'){relCat=t.dataset.cat||''; if(t.dataset.scope) relScope=t.dataset.scope; if(t.dataset.goto){tab='rel';window.scrollTo({top:0})} render()}
   else if(a==='info'){const id=t.dataset.id; if(openInfo.has(id)) openInfo.delete(id); else openInfo.add(id); render()}
   else if(a==='anaN'){anaN=+t.dataset.n; render()}
   else if(a==='icsadd'){icsDownload()}
@@ -1148,11 +1159,13 @@ document.addEventListener('change',e=>{
   if(t.id==='bak'){ const f=t.files&&t.files[0]; t.value=''; if(f) restoreBackup(f); return }
   if(t.id==='imp-acc'){ impAcc=t.value; return }
   if(t.id==='rel-src'){ relSrc=t.value; render(); return }
+  if(t.id==='rel-cat'){ relCat=t.value; render(); return }
+  if(t.id==='rel-scope'){ relScope=t.value; render(); return }
   if(t.id==='csv'){ readFile(t.files&&t.files[0]); t.value=''; return }
   if(!a) return;
   if(a==='vir'){const m=getMonth(cur);m.virs[+t.dataset.i]=t.checked;saveMonth(cur);render()}
   else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){setSolde(c,num(t.value));saveCfg();render()}}
-  else if(a==='cat'){const m=getMonth(cur);const o=m.ops.find(x=>x.id===t.dataset.id);if(o){const v=t.value, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([cur]); let n=0;
+  else if(a==='cat'){const f=findOp(t.dataset.id);const o=f&&f.o;if(o){const v=t.value, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([f.k]); let n=0;
     if(fk){ (cfg.regles=cfg.regles||{})['f:'+fk]=v; const old=ruleKey(o.libelle); if(old&&cfg.regles[old]&&cfg.regles[old]!==v) delete cfg.regles[old];
       Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat!==v){ x.cat=v; n++; touched.add(k) } })); saveCfg() }
     touched.forEach(saveMonth); if(n) toast(`${n+1} opérations « ${o.libelle.slice(0,40)} » classées en ${CAT[v]?CAT[v].nom:v}.`); render()}}
