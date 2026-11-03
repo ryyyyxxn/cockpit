@@ -199,13 +199,19 @@ const CATS=[
  {id:'couple',nom:'Couple',g:'plaisir'},
  {id:'shopping',nom:'Sneakers & shopping',g:'plaisir'},
  {id:'voyages',nom:'Voyages',g:'plaisir'},
+ {id:'loisirs',nom:'Loisirs & culture (ciné, jeux…)',g:'plaisir'},
  {id:'autre',nom:'Autre / imprévu',g:'plaisir'},
  {id:'courses',nom:'Courses',g:'vie'},
  {id:'logement',nom:'Logement & assurances',g:'vie'},
  {id:'transport',nom:'Voiture & transport',g:'vie'},
  {id:'sport',nom:'Sport',g:'vie'},
+ {id:'sante',nom:'Santé & pharmacie',g:'vie'},
+ {id:'hygiene',nom:'Hygiène, beauté & coiffeur',g:'vie'},
+ {id:'equipement',nom:'Équipement & high-tech',g:'vie'},
+ {id:'etudes',nom:'Études & fournitures',g:'vie'},
  {id:'abos',nom:'Abonnements & téléphone',g:'fixe'},
  {id:'papa',nom:'Remboursement de prêt ou dette',g:'fixe'},
+ {id:'frais',nom:'Frais bancaires, impôts & amendes',g:'fixe'},
  {id:'cadeau',nom:'Cadeaux',g:'projet'},
  {id:'epargne',nom:'Épargne & investissement',g:'epargne'},
  {id:'revenu',nom:'Revenus',g:'revenu'},
@@ -222,6 +228,12 @@ const KEYWORDS=[
  ['revenu',/salaire|paie|caf|aide|apl|prime/],
  ['abos',/spotify|netflix|disney|apple|icloud|google|gemini|anthropic|claude|snap|free mobile|bouygues|sfr|orange|sosh|red by|basic.?fit|fitness|salle|deezer|prime video|youtube/],
  ['sorties',/deliveroo|uber ?eats|just ?eat|mcdo|mcdonald|burger|kfc|resto|restaurant|bar |brasserie|pizza|sushi|kebab|starbucks|cafe|café/],
+ ['sante',/pharmacie|pharma\b|doctolib|medecin|médecin|dentiste|opticien|podolog|laboratoire|kine|kiné/],
+ ['hygiene',/coiffeur|coiffure|barbier|barber/],
+ ['equipement',/boulanger|fnac|darty|ldlc|cdiscount|ikea|leroy ?merlin|castorama|\baction\b/],
+ ['etudes',/librairie|papeterie|bureau vall|cultura|universit|ecole|école/],
+ ['loisirs',/cinema|cinéma|ugc|pathe|pathé|gaumont|mk2|steam|playstation|xbox|nintendo|ticketmaster|bowling|escape/],
+ ['frais',/frais|commission|cotis.*carte|impot|impôt|dgfip|amende|antai/],
  ['shopping',/nike|snkrs|adidas|zalando|courir|foot ?locker|vinted|zara|h&m|asos|jd sports|amazon|shein|uniqlo/],
  ['courses',/carrefour|leclerc|auchan|lidl|monoprix|intermarch|franprix|aldi|super ?u|casino|picard/],
  ['transport',/uber|sncf|ratp|navigo|total|esso|bp |shell|avia|peage|péage|parking|bolt|heetch|blablacar|ouigo/],
@@ -851,7 +863,7 @@ function viewDash(){
     <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} comptes</div></div>
     <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:'Matelas de sécurité atteint'}</div></div>
     <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
-    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
+    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
   ${viewPlacer()}
   <div class="row">
@@ -995,7 +1007,7 @@ function viewSet(){
     <div class="acct"><label for="s-pb">Enveloppe plaisir / mois</label><input class="amount" id="s-pb" inputmode="decimal" data-act="cfg" data-k="plaisirBudget" value="${cfg.plaisirBudget??''}"></div>
     <div class="acct"><label for="s-jp">Date de réception du salaire (jour du mois)</label><input class="amount" type="number" min="1" max="31" id="s-jp" data-act="cfg" data-k="jourPaie" value="${JP()}"></div>
     <div class="acct"><label for="s-seuil">Matelas de sécurité visé</label><input class="amount" id="s-seuil" inputmode="decimal" data-act="cfg" data-k="seuilSecurite" value="${cfg.seuilSecurite??''}"></div>
-    <div class="muted" style="font-size:13px">Ton nom sert à reconnaître les virements entre tes propres comptes. La date de salaire sert au compte à rebours, au rituel des virements et au calcul « par paie » des objectifs. Les opérations restent rangées par mois du calendrier. L'enveloppe plaisir regroupe sorties, couple, shopping, voyages et imprévus.</div>
+    <div class="muted" style="font-size:13px">Ton nom sert à reconnaître les virements entre tes propres comptes. La date de salaire sert au compte à rebours, au rituel des virements et au calcul « par paie » des objectifs. Les opérations restent rangées par mois du calendrier. L'enveloppe plaisir regroupe sorties, couple, shopping, voyages, loisirs et imprévus.</div>
   </section>
   <section class="card" aria-labelledby="h-bud"><h2 id="h-bud">Budgets par poste</h2>
     ${CATS.filter(c=>c.g!=='plaisir'&&c.g!=='revenu'&&c.g!=='interne'&&c.g!=='pro').map(c=>`<div class="acct"><label for="b-${c.id}">${esc(c.nom)}${c.id==='epargne'?' (cible)':''}</label><input class="amount" id="b-${c.id}" inputmode="decimal" data-act="bud" data-k="${c.id}" value="${b[c.id]??''}" placeholder="—"></div>`).join('')}
