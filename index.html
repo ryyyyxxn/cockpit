@@ -13,23 +13,23 @@
 <style>
 /* Layout: cockpit d'opérateur — bandeau de paie en tête, résumé chiffré, puis détail par onglet */
 :root{
-  --bg:#EEF1EF; --surface:#FFFFFF; --sunk:#E3E9E6; --line:#D2DBD6;
-  --ink:#12201B; --muted:#4A5A53; --accent:#0F6B4F; --accent-ink:#FFFFFF;
-  --warn:#B4470A; --warn-bg:#FBE7DA; --ok-bg:#DDF0E7; --hero:#12201B; --hero-ink:#FFFFFF; --hero-soft:#1F332B; --hero-muted:#B9C9C1;
-  --bar2:#6FB89B;
+  --bg:#EEF2F7; --surface:#FFFFFF; --sunk:#E2E8F1; --line:#CFD8E5;
+  --ink:#0F1B2D; --muted:#4A5870; --accent:#1F4B8F; --accent-ink:#FFFFFF;
+  --warn:#B4470A; --warn-bg:#FBE7DA; --ok-bg:#DCE8F7; --hero:#0E1E38; --hero-ink:#FFFFFF; --hero-soft:#1B3054; --hero-muted:#AFC2DD;
+  --bar2:#6FA3E0;
   --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0E1714; --surface:#16231E; --sunk:#1E2E28; --line:#2C3F37;
-  --ink:#E7EFEB; --muted:#A3B5AD; --accent:#4FC199; --accent-ink:#0B1612;
-  --warn:#F0965A; --warn-bg:#3A2418; --ok-bg:#173A2D; --hero:#1E3229; --hero-ink:#F1F6F3; --hero-soft:#27413A; --hero-muted:#A9C2B7;
-  --bar2:#2F7A5E; color-scheme:dark}}
+  --bg:#0B1320; --surface:#121D2E; --sunk:#1A2739; --line:#2A3A52;
+  --ink:#E6EDF7; --muted:#A0B0C8; --accent:#6FA8F0; --accent-ink:#0A1322;
+  --warn:#F0965A; --warn-bg:#3A2418; --ok-bg:#16304F; --hero:#16294A; --hero-ink:#F1F5FB; --hero-soft:#213A60; --hero-muted:#A9BEDB;
+  --bar2:#3A6FB5; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0E1714; --surface:#16231E; --sunk:#1E2E28; --line:#2C3F37;
-  --ink:#E7EFEB; --muted:#A3B5AD; --accent:#4FC199; --accent-ink:#0B1612;
-  --warn:#F0965A; --warn-bg:#3A2418; --ok-bg:#173A2D; --hero:#1E3229; --hero-ink:#F1F6F3; --hero-soft:#27413A; --hero-muted:#A9C2B7;
-  --bar2:#2F7A5E; color-scheme:dark}
+  --bg:#0B1320; --surface:#121D2E; --sunk:#1A2739; --line:#2A3A52;
+  --ink:#E6EDF7; --muted:#A0B0C8; --accent:#6FA8F0; --accent-ink:#0A1322;
+  --warn:#F0965A; --warn-bg:#3A2418; --ok-bg:#16304F; --hero:#16294A; --hero-ink:#F1F5FB; --hero-soft:#213A60; --hero-muted:#A9BEDB;
+  --bar2:#3A6FB5; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -223,6 +223,7 @@ const CATS=[
  {id:'shopping',nom:'Sneakers & shopping',g:'plaisir'},
  {id:'voyages',nom:'Voyages',g:'plaisir'},
  {id:'loisirs',nom:'Loisirs & culture (ciné, jeux…)',g:'plaisir'},
+ {id:'paris',nom:'Paris & jeux d’argent (mises − gains)',g:'plaisir'},
  {id:'autre',nom:'Autre / imprévu',g:'plaisir'},
  {id:'courses',nom:'Courses',g:'vie'},
  {id:'logement',nom:'Logement & assurances',g:'vie'},
@@ -246,7 +247,9 @@ const CATS=[
  {id:'remuneration',nom:'Pro · Rémunération versée',g:'pro'}
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
+const PARIS_RE=/betclic|winamax|unibet|\bpmu\b|\bfdj\b|fran[cç]aise des jeux|parions ?sport|zebet|\bbwin\b|pokerstars|betsson|genybet|netbet|vbet|joa online|barriere bet|feeling bet|circus|olybet/;
 const KEYWORDS=[
+ ['paris',PARIS_RE],
  ['epargne',/livret|trade ?republic|\bpea\b|assurance.?vie|epargne|épargne|\bpel\b|\bldds\b|\blep\b|\blddc\b/],
  ['interne',/vir(ement)? interne|compte a compte|compte à compte|virement de compte/],
  ['revenu',/salaire|paie|caf|aide|apl|prime|bourse|crous|france travail|pole emploi/],
@@ -259,7 +262,7 @@ const KEYWORDS=[
  ['hygiene',/coiffeur|coiffure|barbier|barber/],
  ['equipement',/\bboulanger\b|fnac|darty|ldlc|cdiscount|ikea|leroy ?merlin|castorama|\baction\b|apple store|samsung|back ?market|rue du commerce|conforama|gifi|hema|flying tiger|maisons du monde|\bbut\b|alinea|alinéa|la foir.?fouille|centrakor|bricomarche|bricomarché|brico|mr bricolage|weldom|point p|lapeyre|darty|electro ?depot|cdiscount|materiel\.net|top achat|apple\.com\/fr|boutique orange|cash converters|easy cash|leclerc high tech/],
  ['etudes',/librairie|papeterie|bureau vall|cultura|universit|ecole|école/],
- ['loisirs',/cinema|\bfdj\b|cinéma|ugc|pathe|pathé|gaumont|mk2|steam|playstation|xbox|nintendo|ticketmaster|bowling|escape|laser game|karting|fnac spectacle|billet|billetterie|france billet|fnac spectacles|seetickets|dice\b|weezevent|shotgun|musee|musée|museum|zoo\b|aquarium|theatre|théâtre|concert|festival|\bparc\b|jeux|games|riot|epic games|blizzard|twitch|bowling|billard|paintball|accrobranche|kart|cine|ciné|kinepolis|cgr|megarama/],
+ ['loisirs',/cinema|cinéma|ugc|pathe|pathé|gaumont|mk2|steam|playstation|xbox|nintendo|ticketmaster|bowling|escape|laser game|karting|fnac spectacle|billet|billetterie|france billet|fnac spectacles|seetickets|dice\b|weezevent|shotgun|musee|musée|museum|zoo\b|aquarium|theatre|théâtre|concert|festival|\bparc\b|jeux|games|riot|epic games|blizzard|twitch|bowling|billard|paintball|accrobranche|kart|cine|ciné|kinepolis|cgr|megarama/],
  ['frais',/(?<!grand )frais|commission|cotisation|agios|interets debiteurs|intérêts débiteurs|impot|impôt|dgfip|amende|antai|tresor public|trésor public/],
  ['papa',/rembours(ement)? (de )?pr[eê]t|[eé]ch[eé]ance pr[eê]t|cr[eé]dit conso|cofidis|cetelem|sofinco|\bfloa\b|\boney\b|\balma\b|klarna|younited|\bpapa\b|\bmaman\b/],
  ['shopping',/nike|snkrs|adidas|zalando|courir|foot ?locker|vinted|zara|h&m|asos|jd sports|amazon|shein|uniqlo|jack ?(&|and)? ?jones|bershka|pull ?(&|and)? ?bear|primark|kiabi|celio|jules|mango|stradivarius|lacoste|levi|snipes|foot korner|galeries lafayette|printemps|sephora|nocibe|nocibé|marionnaud|aliexpress|temu|kooples|decimas|half price|normal\b|kiabi|gemo|gémo|la halle|chaussea|eram|besson|minelli|zadig|sandro|maje|bash\b|ba&sh|morgan|camaieu|promod|pimkie|cache cache|bonobo|celio|devred|izac|brice|armand thiery|tommy|ralph|carhartt|new balance|asics|puma|reebok|vans|converse|timberland|the north face|quiksilver|superdry|calzedonia|intimissimi|undiz|etam|yves rocher|lush|kiko|rituals|l.occitane|claire.?s|pandora|histoire d.or|swarovski|lego|king jouet|la grande recre|la grande récré|joueclub|micromania|smyths/],
@@ -407,7 +410,7 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
 function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const fk=fullKey(l), rg=cfg.regles||{}; if(fk&&rg['f:'+fk]){ const rc=rg['f:'+fk], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const k=ruleKey(l); if(k&&rg[k]){ const rc=rg[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
-  for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&c!=='interne'&&a>0) continue; return c } }
+  for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&c!=='interne'&&c!=='paris'&&a>0) continue; return c } }
   return a>0?'revenu':'autre' }
 const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
 const opKey=(src,x)=>src+'|'+x.date+'|'+x.libelle+'|'+Number(x.montant);
@@ -469,6 +472,9 @@ function migrate(){ if(migrated||!db) return; migrated=true; const touched=new S
 function objMigrate(){ if(!db||!cfg||cfg.objMigr1) return; const hasEp=(cfg.comptes||[]).some(c=>!isCourant(c));
   (cfg.objectifs||[]).forEach(o=>{ if(o.type==='ca'&&o.debut) o.debut=o.debut.slice(0,8)+'01'; else if(!o.compteId&&!(+o.actuel)&&hasEp) o.compteId='__all' }); cfg.objMigr1=true; saveCfg() }
 function objMigrate2(){ if(!db||!cfg||cfg.objMigr2) return; (cfg.objectifs||[]).forEach(o=>{ if(o.type==='ca'&&/b[ée]n[ée]f|marge/i.test(o.nom||'')){ o.type='benef'; delete o.debut } }); cfg.objMigr2=true; saveCfg() }
+function parisMigrate(){ if(!db||!cfg||cfg.parisMigr1) return; const touched=new Set();
+  Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(o=>{ if(o.cat!=='paris'&&!isProAcc(srcOf(o))&&PARIS_RE.test(String(o.libelle).toLowerCase())){ o.cat='paris'; touched.add(k) } }));
+  cfg.parisMigr1=true; saveCfg(); touched.forEach(saveMonth) }
 function revMigrate(){ if(!db||!cfg||cfg.revMigr1) return; const touched=new Set(); Object.keys(months).forEach(k=>{ (months[k].ops||[]).forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(+o.montant>0&&(!CAT[o.cat]||isSpendG(g))&&!isProAcc(srcOf(o))){ o.cat='revenu'; touched.add(k) } }) }); cfg.revMigr1=true; saveCfg(); touched.forEach(saveMonth) }
 /* ---------- où placer ---------- */
 function viewPlacer(){ const cs=cfg.comptes||[], full=cs.filter(isFull); if(!full.length) return '';
@@ -862,7 +868,7 @@ function render(){ now=new Date();
   const active=document.activeElement&&document.activeElement.id;
   if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
-  ensureAccounts(); revMigrate(); objMigrate(); objMigrate2(); syncBalances();
+  ensureAccounts(); revMigrate(); objMigrate(); objMigrate2(); parisMigrate(); syncBalances();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
   $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='ana'?viewAna(): tab==='pro'?viewPro(): viewSet();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
@@ -891,7 +897,7 @@ function viewDash(){
     <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} compte${comptes.length>1?'s':''}</div></div>
     <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:seuil>0?'Matelas de sécurité atteint':'Fixe ton matelas visé dans Réglages'}</div></div>
     <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
-    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${pb?'':'<strong>Fixe ton budget plaisir dans Réglages.</strong> '}${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
+    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture, Paris & jeux d’argent (mises moins gains) et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${pb?'':'<strong>Fixe ton budget plaisir dans Réglages.</strong> '}${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
   ${viewPlacer()}
   <div class="row">
