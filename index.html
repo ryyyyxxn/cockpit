@@ -53,6 +53,12 @@ header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items
 .tab{font:600 15px var(--sans);padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
 .tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .tab svg,.tab .ts{display:none}
+.authwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,440px);gap:40px;align-items:center;max-width:980px;margin:24px auto;width:100%}
+.authwrap[hidden]{display:none}
+.authintro{display:flex;flex-direction:column;gap:18px}
+.authlist{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:16px;line-height:1.5}
+.authlist strong{color:var(--ink)}
+@media (max-width:800px){.authwrap{grid-template-columns:1fr;gap:24px}}
 .tab[hidden]{display:none!important}
 @media (max-width:640px){
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;flex-wrap:nowrap;gap:0;justify-content:space-around;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgba(17,24,39,.06)}
@@ -201,9 +207,20 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
       </nav>
     </div>
   </header>
-  <section id="auth" class="card" hidden style="max-width:440px;margin:24px auto;width:100%">
+  <section id="auth" class="authwrap" hidden>
+    <div class="authintro">
+      <svg width="64" height="64" viewBox="0 0 512 512" aria-hidden="true" style="border-radius:16px;display:block"><defs><linearGradient id="lg-auth" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C7D2FE"/></linearGradient></defs><rect width="512" height="512" fill="#4F46E5"/><path d="M370 146 A156 156 0 1 0 370 366" fill="none" stroke="url(#lg-auth)" stroke-width="84" stroke-linecap="round"/><line x1="84" y1="216" x2="240" y2="216" stroke="#4F46E5" stroke-width="54" stroke-linecap="round"/><polyline points="84,292 200,292 322,186" fill="none" stroke="#4F46E5" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/><polyline points="276,182 326,182 326,232" fill="none" stroke="#4F46E5" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/><line x1="84" y1="216" x2="240" y2="216" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round"/><polyline points="84,292 200,292 322,186" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/><polyline points="276,182 326,182 326,232" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h2 style="font-size:34px;line-height:1.1;margin:0;letter-spacing:-.02em">Ton argent, enfin clair.</h2>
+      <ul class="authlist">
+        <li><strong>Importe le relevé CSV de ta banque</strong> : chaque dépense est classée toute seule, et tu corriges en un clic.</li>
+        <li><strong>Vois ce qu'il te reste à dépenser</strong> jusqu'à ta prochaine paie, et où part vraiment ton argent.</li>
+        <li><strong>Suis tes objectifs et ton épargne</strong> : livrets, placements, abonnements, mois après mois.</li>
+        <li><strong>Tes données restent privées</strong> : toi seul y as accès, depuis ton téléphone ou ton ordinateur.</li>
+      </ul>
+    </div>
+    <div class="card" style="width:100%;max-width:440px">
     <h2 id="auth-title">Connexion</h2>
-    <p class="muted" style="margin:0">Tes données sont privées : toi seul les vois, depuis n'importe quel appareil.</p>
+    <p class="muted" style="margin:0">Gratuit. Il te faut juste un e-mail.</p>
     <form id="authform" style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="au-mail">E-mail</label><input type="email" id="au-mail" autocomplete="email" required></div>
       <div style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="au-pass">Mot de passe (8 caractères minimum)</label><input type="password" id="au-pass" autocomplete="current-password" minlength="8" required></div>
@@ -212,6 +229,7 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
       <button class="linkbtn" type="button" id="au-forgot" style="align-self:center">Mot de passe oublié ?</button>
       <div id="au-msg" class="muted" role="status" style="font-size:14px"></div>
     </form>
+    </div>
   </section>
   <section id="recov" class="card" hidden style="max-width:440px;margin:24px auto;width:100%">
     <h2>Choisis un nouveau mot de passe</h2>
@@ -247,6 +265,7 @@ const CATS=[
  {id:'voyages',nom:'Voyages',g:'plaisir'},
  {id:'loisirs',nom:'Loisirs & culture (ciné, jeux…)',g:'plaisir'},
  {id:'paris',nom:'Paris & jeux d’argent (mises − gains)',g:'plaisir'},
+ {id:'rembourse',nom:'Remboursement reçu (en moins du plaisir)',g:'plaisir'},
  {id:'autre',nom:'Autre / imprévu',g:'plaisir'},
  {id:'courses',nom:'Courses',g:'vie'},
  {id:'logement',nom:'Logement & assurances',g:'vie'},
@@ -280,7 +299,7 @@ const KEYWORDS=[
  ['sport',/basic.?fit|fitness|salle de sport|keep cool|on air|wellpass|gymlib|neoness|orange bleue/],
  ['loisirs',/disneyland|parc asterix|parc astérix|futuroscope|europa.?park/],
  ['abos',/spotify|netflix|disney|apple\.com|apple|icloud|google|gemini|anthropic|claude|snap|free mobile|freebox|free telecom|bouygues|\bsfr\b|orange|sosh|red by|deezer|prime video|youtube|canal|notion|canva|adobe|microsoft|office 365|dropbox|openai|chatgpt|midjourney|audible|crunchyroll|molotov|dazn|bein|\bocs\b|paramount|fibre|sfr|free telecom|free sas|bbox|b&you|prixtel|lebara|lycamobile|nrj mobile|la poste mobile|coriolis|cdiscount mobile|youtube|twitch|patreon|onlyfans|tinder|bumble|hinge|meetic|duolingo|babbel|headspace|calm|strava|myfitnesspal|nintendo online|playstation plus|xbox game pass|game pass|ubisoft|ea play|icloud|google one|google storage|proton|nordvpn|surfsharkvpn|1password|bitwarden|lastpass|linkedin premium|medium|le monde|le figaro|lequipe|l.équipe|mediapart|cafeyn/],
- ['sorties',/deliveroo|coffee|waffle|\bquick\b|pain quotidien|gladines|uber ?eats|just ?eat|mcdo|mcdonald|burger|kfc|resto|restaurant|bar |brasserie|bistro|pizza|sushi|kebab|starbucks|cafe|café|tacos|five guys|boulangerie|patisserie|pâtisserie|creperie|crêperie|subway|domino|bagel|bubble|chicken|grill|snack|traiteur|\bpub\b|cocktail|mie caline|brioche|columbus|nando|big fernand|pret a manger|prêt à manger|fourchette|brasseur|buffalo|hippopotamus|courtepaille|flunch|del arte|vapiano|leon de bruxelles|bistro|wok|ramen|poke|bowl|indien|thai|libanais|cantine|crous resto|cafeteria|cafétéria|biere|bière|cave a|\bbar\b|lounge|chicha|glacier|amorino|dunkin|krispy|cojean|exki|bchef|o'tacos|otacos|popeyes|black and white|pitaya|class.?croute|marie blachere|marie blachère|feuillette/],
+ ['sorties',/deliveroo|coffee|waffle|\bquick\b|pain quotidien|gladines|uber ?eats|just ?eat|mcdo|mcdonald|burger|kfc|resto|restaurant|bar |brasserie|bistro|pizza|sushi|kebab|starbucks|cafe|café|tacos|five guys|boulangerie|patisserie|pâtisserie|creperie|crêperie|subway|domino|bagel|bubble|chicken|grill|snack|traiteur|\bpub\b|cocktail|mie caline|brioche|columbus|nando|big fernand|pret a manger|prêt à manger|fourchette|brasseur|buffalo|hippopotamus|courtepaille|flunch|del arte|vapiano|leon de bruxelles|bistro|wok|ramen|poke|\bbowl\b|indien|thai|libanais|cantine|crous resto|cafeteria|cafétéria|biere|bière|cave a|\bbar\b|lounge|chicha|glacier|amorino|dunkin|krispy|cojean|exki|bchef|o'tacos|otacos|popeyes|black and white|pitaya|class.?croute|marie blachere|marie blachère|feuillette/],
  ['sante',/pharmacie|pharma\b|doctolib|medecin|médecin|dentiste|opticien|podolog|laboratoire|kine|kiné|mutuelle|hopital|hôpital|clinique|optic|optique|krys|afflelou|\batol\b|\balan\b|harmonie|mgen|\bmaaf sante|ameli|cpam|radiolog|osteo|ostéo|psy\b|psycholog|veterinaire|vétérinaire|centre de sante|centre de santé|labo/],
  ['hygiene',/coiffeur|coiffure|barbier|barber/],
  ['equipement',/\bboulanger\b|fnac|darty|ldlc|cdiscount|ikea|leroy ?merlin|castorama|\baction\b|apple store|samsung|back ?market|rue du commerce|conforama|gifi|hema|flying tiger|maisons du monde|\bbut\b|alinea|alinéa|la foir.?fouille|centrakor|bricomarche|bricomarché|brico|mr bricolage|weldom|point p|lapeyre|darty|electro ?depot|cdiscount|materiel\.net|top achat|apple\.com\/fr|boutique orange|cash converters|easy cash|leclerc high tech/],
@@ -300,9 +319,9 @@ const epargnes=()=>((cfg&&cfg.comptes)||[]).filter(c=>!isCourant(c));
 const srcOf=o=>o.src||'cic';
 const srcName=id=>{const c=((cfg&&cfg.comptes)||[]).find(x=>x.id===id); return c?c.nom:(id==='cic'?'Compte principal':id==='revolut'?'Revolut':'Compte supprimé')};
 const deacc=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-const COLORS=['var(--ink)','var(--accent)','var(--bar2)','var(--warn)','var(--muted)','var(--line)'];
+const COLORS=['#4F46E5','#F97316','#06B6D4','#A855F7','#EAB308','#EC4899','#14B8A6','#64748B','#0EA5E9','#F43F5E'];
 
-let relCat='', relScope='mois', impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
+let pendingProp=null, relCat='', relScope='mois', impAcc='', relSrc='all', wz=null, forceWizard=false, db=null, cfg=null, months={}, accHist={}, tab='dash', ready=false, cfgLoaded=false, monthsLoaded=false;
 const $app=document.getElementById('app'), $month=document.getElementById('month');
 let now=new Date();
 const JP=()=>{const j=Math.round(Number(cfg&&cfg.jourPaie)||27);return Math.min(31,Math.max(1,j))};
@@ -344,7 +363,7 @@ function syncBalances(){ if(!cfg) return; const cs=cfg.comptes||[]; let changed=
   const W={}; cs.forEach(c=>W[c.id]=nameWords(c.nom));
   // which account does an internal transfer point to (most specific name wins)
   const target=o=>{ const src=srcOf(o); let best=null,bl=0,tie=false; cs.forEach(c=>{ if(c.id===src||!W[c.id].length) return; if(libMatch(o.libelle,W[c.id])){ const l=W[c.id].join(' ').length; if(l>bl){best=c.id;bl=l;tie=false} else if(l===bl) tie=true } }); return tie?null:best };
-  const inferred={}; allOps.forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(g!=='epargne'&&g!=='interne') return; const t=target(o); if(!t) return; (inferred[t]=inferred[t]||[]).push(o) });
+  const inferred={}; allOps.forEach(o=>{ const g=CAT[o.cat]&&CAT[o.cat].g; if(g!=='epargne'&&g!=='interne') return; const t=opDest(o); if(!t) return; (inferred[t]=inferred[t]||[]).push(o) });
   cs.forEach(c=>{ const d0=c.soldeDate; let own=isCourant(c)?allOps.filter(o=>srcOf(o)===c.id&&o.date>d0):((accHist[c.id]||{}).ops||[]).filter(o=>o.date>d0);
     let delta=0,n=0,last='';
     if(own.length){ own.forEach(o=>{delta+=+o.montant||0;n++; if(o.date>last) last=o.date}) }
@@ -432,22 +451,37 @@ function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((c
   const nm=deacc(cfg&&cfg.nomTitulaire).split(/[\s-]+/).filter(w=>w.length>=2);
   if(nm.length>=2&&nm.every(w=>low.includes(w))) return true;
   return false }
-function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const fk=fullKey(l), rg=cfg.regles||{}; if(fk&&rg['f:'+fk]){ const rc=rg['f:'+fk], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const k=ruleKey(l); if(k&&rg[k]){ const rc=rg[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
+function guessCat(l,a,src,type){ src=src||(courants()[0]||{}).id||'cic'; const fk=fullKey(l), rg=cfg.regles||{}; if(fk&&rg['f:'+fk]){ const rc=rg['f:'+fk], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g)&&rc!=='rembourse'&&rc!=='paris')) return rc } const k=ruleKey(l); if(k&&rg[k]){ const rc=rg[k], g=CAT[rc]&&CAT[rc].g; if(!(a>0&&isSpendG(g))) return rc } const pg=proGuess(l,a,src); if(pg) return pg; if(a<0&&epargnes().some(c=>libMatch(l,nameWords(c.nom)))) return 'epargne'; if(autoInterne(l,a,src,type)) return 'interne'; const s=String(l).toLowerCase();
   for(const [c,re] of KEYWORDS){ if(re.test(s)){ if(c==='revenu'&&a<0) continue; if(c!=='revenu'&&c!=='epargne'&&c!=='interne'&&c!=='paris'&&a>0) continue; return c } }
   return a>0?'revenu':'autre' }
 const isSpendG=g=>g==='plaisir'||g==='vie'||g==='fixe'||g==='projet';
 const opKey=(src,x)=>src+'|'+x.date+'|'+x.libelle+'|'+Number(x.montant);
 function countKeys(ops,f){ const c={}; ops.forEach(x=>{const k=f(x); c[k]=(c[k]||0)+1}); return c }
-function importOps(list,src){
+function importChecks(list,src,added){ const W=[]; const nm=srcName(src);
+  const withS=list.filter(o=>o.solde!=null&&!isNaN(o.solde));
+  if(withS.length>=4){ const fit=arr=>{ let ok=0,n=0; for(let i=1;i<arr.length;i++){ n++; if(Math.abs((arr[i].solde-arr[i-1].solde)-arr[i].montant)<0.02) ok++ } return n?ok/n:1 };
+    const best=Math.max(fit(withS),fit(withS.slice().reverse())); if(best<0.8) W.push(`Les montants lus ne collent pas avec la colonne « solde » du fichier (${Math.round(best*100)} % de cohérence) : vérifie quelques opérations de ${nm}.`) }
+  const big=list.filter(o=>Math.abs(o.montant)>=10000); if(big.length) W.push(`${big.length} opération${big.length>1?'s':''} de plus de 10 000 € dans ce fichier : vérifie qu'elle${big.length>1?'s sont':' est'} bien lue${big.length>1?'s':''}.`);
+  const depOf=k=>((months[k]||{}).ops||[]).filter(o=>srcOf(o)===src&&isDepOp(o)).reduce((a,o)=>a-o.montant,0);
+  Object.keys(added).forEach(k=>{ const others=Object.keys(months).filter(x=>x!==k&&((months[x].ops||[]).some(o=>srcOf(o)===src))).map(depOf).filter(v=>v>0).sort((a,b)=>a-b);
+    if(others.length<2) return; const med=others[Math.floor(others.length/2)], d=depOf(k);
+    if(d>3*med&&d-med>300) W.push(`Tes dépenses de ${monthLabel(k)} sur ${nm} (${eur(d)}) font plus de 3 fois ton mois habituel (${eur(med)}). Si ça te paraît faux, le fichier a peut-être été mal lu.`) });
+  cfg.importWarn=W.length?{at:new Date().toISOString(),msgs:W}:null; return W }
+const BANKS=[{n:'Revolut',h:/type,product,started date/,re:/revolut/,neo:1},{n:'N26',h:/"payee"|payee,|account number.*transaction type|partner name/,re:/\bn26\b/,neo:1},{n:'Qonto',h:/counterparty name/,re:/qonto/,neo:1,pro:1},
+  {n:'Boursorama',h:/dateop;dateval;label/,re:/bourso/},{n:'Crédit Agricole',h:/d[ée]bit euros;cr[ée]dit euros/,re:/credit agricole|\bca\b/},{n:'La Banque Postale',h:/montant\(euros\)/,re:/banque postale|\blbp\b/},
+  {n:'Société Générale',h:/d[ée]tail de l.[ée]criture/,re:/societe generale|\bsg\b/},{n:'BNP Paribas',h:/categorie operation;sous categorie operation|libelle operation/,re:/\bbnp\b/},
+  {n:'CIC',h:/^date;date de valeur;d[ée]bit;cr[ée]dit;libell[ée];solde/m,re:/\bcic\b|credit mutuel/},{n:'Fortuneo',h:/date op[ée]ration;date valeur;libell[ée];d[ée]bit;cr[ée]dit/,re:/fortuneo/}];
+function detectBank(t){ const head=String(t).slice(0,1500).toLowerCase(); return BANKS.find(b=>b.h.test(head))||null }
+function importOps(list,src,note){
   src=src||(courants()[0]||{}).id||'cic'; const added={}; let dup=0; const exist={}, seen={};
   list.forEach(o=>{ const k=periodOf(o.date); const m=getMonth(k);
     const ex=exist[k]||(exist[k]=countKeys(m.ops,x=>opKey(srcOf(x),x))); const kk=opKey(src,o); seen[kk]=(seen[kk]||0)+1;
     if(seen[kk]<=(ex[kk]||0)){dup++;return}
     m.ops.push({id:uid(),date:o.date,libelle:o.libelle,montant:o.montant,src,cat:guessCat(o.libelle,o.montant,src,o.type)}); added[k]=(added[k]||0)+1 });
-  Object.keys(added).forEach(saveMonth); cfg.lastImport=new Date().toISOString(); saveCfg();
+  importChecks(list,src,added); Object.keys(added).forEach(saveMonth); cfg.lastImport=new Date().toISOString(); saveCfg();
   const total=Object.values(added).reduce((a,b)=>a+b,0);
   const parts=Object.keys(added).sort().map(k=>shortMonth(k)+' : '+added[k]).join(', ');
-  toast(total?`${srcName(src)} : ${total} opérations importées (${parts})${dup?`, ${dup} doublons ignorés`:''}`:'Aucune nouvelle opération : tout était déjà importé.');
+  toast((note?note+' ':'')+(total?`${srcName(src)} : ${total} opérations importées (${parts})${dup?`, ${dup} doublons ignorés`:''}${cfg.importWarn?'. À vérifier : regarde le bandeau en haut de Relevé.':''}`:'Aucune nouvelle opération : tout était déjà importé.'));
   render();
 }
 
@@ -553,7 +587,7 @@ function viewAna(){
   const cper=per.slice(keys.indexOf(withData[0]));
   const mx=Math.max(1,...cper.map(p=>Math.max(p.dep,p.revenus)));
   const pct=v=>Math.max(0,Math.min(100,v));
-  const COL=['var(--accent)','var(--warn)','var(--bar2)','var(--ink)','var(--muted)','var(--line)'];
+  const COL=COLORS;
   return `<div style="display:flex;flex-direction:column;gap:20px">
   <div class="editrow" role="group" aria-label="Période analysée"><span class="muted" style="font-size:14px">Période :</span>${[3,6,12].map(x=>`<button class="btn ghost small" data-act="anaN" data-n="${x}" aria-pressed="${anaN===x}" style="${anaN===x?'background:var(--ink);color:var(--bg);border-color:var(--ink)':''}">${x} mois</button>`).join('')}<span class="muted" style="font-size:13px">${n} mois avec des données, jusqu'à ${esc(monthLabel(cur))}</span></div>
   <section class="kpis" aria-label="Moyennes de la période">
@@ -691,6 +725,10 @@ function lastImportInfo(){ let last=cfg&&cfg.lastImport?new Date(cfg.lastImport)
   Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>{ if(o.date>maxOp) maxOp=o.date }));
   if(!last&&maxOp) last=new Date(maxOp+'T12:00:00');
   const days=last?Math.floor((new Date()-last)/864e5):null; return {last,days,hasData:!!maxOp} }
+function viewFreelanceHint(){ if(isIndep()||cfg.freelanceHintOff) return ''; const ks=[0,1,2].map(i=>addMonths(cur,-i)); let sum=0,n=0;
+  ks.forEach(k=>((months[k]||{}).ops||[]).forEach(o=>{ if(+o.montant>0&&/vinted|stripe|\bmalt\b|shopify|sumup|etsy|leboncoin|vestiaire|upwork|fiverr|comet/i.test(o.libelle)){ sum+=+o.montant; n++ } }));
+  if(sum<300) return '';
+  return `<section class="card" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--ok-bg)"><div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 260px"><strong>Tu as encaissé ${eur(sum)} de ventes ou de missions en 3 mois</strong><span class="muted" style="font-size:14px">Vinted, Stripe, Malt… Active le suivi freelance : tes achats pour revendre sortiront de ton budget plaisir, et tu verras ton vrai bénéfice et tes cotisations.</span></div><div class="editrow"><button class="btn ghost small" data-act="freeoff">Non merci</button><button class="btn" data-act="freeon">Activer le suivi freelance</button></div></section>` }
 function viewReminder(){ const r=lastImportInfo(); if(cfg.onboardSkipped&&!cfg.onboarded) return '';
   if(r.hasData&&r.days!==null&&r.days<10) return '';
   const title=r.hasData?`Ça fait ${r.days} jours que tu n'as pas importé de relevé`:'Importe ton premier relevé';
@@ -718,11 +756,11 @@ function aboRegular(os){ const d=os.map(o=>new Date(o.date+'T12:00:00')); const 
 function detectAbos(){ const groups={}; let ref='';
   Object.values(months).forEach(m=>(m.ops||[]).forEach(o=>{ if(o.date>ref) ref=o.date; const c=CAT[o.cat]; if(o.montant>=0||!c||c.g==='interne'||c.g==='epargne'||c.g==='revenu'||c.g==='pro'||isProAcc(srcOf(o))||o.cat==='courses'||o.cat==='sorties'||o.cat==='papa'||o.cat==='logement'&&/loyer/i.test(o.libelle)) return;
     const k=aboKey(o.libelle); if(!k) return; (groups[k]=groups[k]||[]).push(o) }));
-  const ign=new Set(cfg.aboIgnore||[]), refD=ref?new Date(ref+'T12:00:00'):new Date(), out=[];
+  const ign=new Set(cfg.aboIgnore||[]), refD=ref?new Date(ref+'T12:00:00'):new Date(), out=[], probs=[];
   Object.entries(groups).forEach(([k,ops])=>{ const brand=k.startsWith('B:');
     const cl=[]; ops.slice().sort((a,b)=>a.montant-b.montant).forEach(o=>{ const a=-o.montant; const c=cl.find(c=>Math.abs(a-c.c)<=Math.max(brand?1:0.5,c.c*(brand?0.1:0.03))); if(c){c.ops.push(o);c.c=c.ops.reduce((s,x)=>s-x.montant,0)/c.ops.length} else cl.push({c:a,ops:[o]}) });
     const subs=[];
-    cl.forEach(c=>{ const os=c.ops.sort((a,b)=>a.date<b.date?-1:1), ms=[...new Set(os.map(o=>o.date.slice(0,7)))]; if(ms.length<3) return; if(os.length/ms.length>1.6) return;
+    cl.forEach(c=>{ const os=c.ops.sort((a,b)=>a.date<b.date?-1:1), ms=[...new Set(os.map(o=>o.date.slice(0,7)))]; if(ms.length<3){ const last=os[os.length-1]; if(brand&&os.length/ms.length<=1.6&&(refD-new Date(last.date+'T12:00:00'))/864e5<=45){ const cid=k+'|'+Math.round(c.c); if(!ign.has(cid)&&!ign.has(k)) probs.push({k,cid,nom:(cfg.aboNames||{})[cid]||(cfg.aboNames||{})[k]||aboLabel(k),montant:-last.montant,unit:-last.montant,last:last.date,first:os[0].date,n:os.length,months:ms.length,active:true,probable:true,src:srcName(srcOf(last))}) } return } if(os.length/ms.length>1.6) return;
       const r=aboRegular(os); if(r.okGap<(brand?0.5:0.75)) return; if(!brand&&r.sd>4) return;
       const last=os[os.length-1], daysSince=Math.round((refD-new Date(last.date+'T12:00:00'))/864e5);
       const lastM=last.date.slice(0,7), perMonth=os.filter(o=>o.date.slice(0,7)===lastM).reduce((a,o)=>a-o.montant,0);
@@ -731,13 +769,13 @@ function detectAbos(){ const groups={}; let ref='';
     subs.forEach(s=>{ if(!s.active) return; const prev=subs.filter(p=>p!==s&&!p.active&&!p.merged&&p.last<=s.first&&(new Date(s.first)-new Date(p.last))/864e5<=45).sort((a,b)=>a.last<b.last?1:-1)[0];
       if(prev){ s.rise=s.unit>prev.unit+0.5?prev.unit:null; s.drop=s.unit<prev.unit-0.5?prev.unit:null; s.first=prev.first; s.n+=prev.n; prev.merged=true } });
     subs.filter(s=>!s.merged).forEach(s=>out.push(s)) });
-  return out.sort((a,b)=>(b.active-a.active)||(b.montant-a.montant)) }
-function viewAbos(){ const list=detectAbos(), act=list.filter(a=>a.active), old=list.filter(a=>!a.active);
+  const res=out.sort((a,b)=>(b.active-a.active)||(b.montant-a.montant)); res.probables=probs.filter(p=>!out.some(o=>o.k===p.k&&o.active)).sort((a,b)=>b.montant-a.montant); return res }
+function viewAbos(){ const list=detectAbos(), act=list.filter(a=>a.active), old=list.filter(a=>!a.active), probs=list.probables||[];
   const tot=act.reduce((a,x)=>a+x.montant,0);
   const row=a=>`<div class="abo" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--sunk)">
     <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px"><label class="lbl" for="ab-${a.cid.replace(/\W/g,'_')}" hidden>Nom de l'abonnement</label><input type="text" id="ab-${a.cid.replace(/\W/g,'_')}" value="${esc(a.nom)}" data-act="aboname" data-k="${esc(a.cid)}" style="font-weight:600;border-color:transparent;background:transparent;padding:4px 6px;min-height:0">
-      <span class="muted" style="font-size:13px;padding-left:6px">${a.n} paiements depuis ${esc(shortMonth(a.first.slice(0,7)))} ${a.first.slice(0,4)} · dernier le ${a.last.slice(8,10)}/${a.last.slice(5,7)} · ${esc(a.src)}</span></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">${a.active?'<span class="pill ok">Actif</span>':'<span class="pill">Plus prélevé depuis 45 jours</span>'}${a.rise?`<span class="pill warn">Hausse : ${eur(a.rise,2)} → ${eur(a.unit,2)}</span>`:''}${a.drop?`<span class="pill ok">Baisse : ${eur(a.drop,2)} → ${eur(a.unit,2)}</span>`:''}</div>
+      <span class="muted" style="font-size:13px;padding-left:6px">${a.n} paiement${a.n>1?'s':''} depuis ${esc(shortMonth(a.first.slice(0,7)))} ${a.first.slice(0,4)} · dernier le ${a.last.slice(8,10)}/${a.last.slice(5,7)} · ${esc(a.src)}</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${a.probable?'<span class="pill warn">Probable</span>':a.active?'<span class="pill ok">Actif</span>':'<span class="pill">Plus prélevé depuis 45 jours</span>'}${a.rise?`<span class="pill warn">Hausse : ${eur(a.rise,2)} → ${eur(a.unit,2)}</span>`:''}${a.drop?`<span class="pill ok">Baisse : ${eur(a.drop,2)} → ${eur(a.unit,2)}</span>`:''}</div>
     <div style="text-align:right;min-width:110px"><div class="num" style="font-weight:600">${eur(a.montant,2)}<span class="muted" style="font-weight:400"> / mois</span></div><div class="muted num" style="font-size:13px">${eur(a.montant*12)} / an</div></div>
     <button class="linkbtn" data-act="aboignore" data-k="${esc(a.cid)}">Pas un abonnement</button></div>`;
   return `<div style="display:flex;flex-direction:column;gap:20px">
@@ -750,6 +788,7 @@ function viewAbos(){ const list=detectAbos(), act=list.filter(a=>a.active), old=
     <p class="muted" style="margin:0;font-size:14px">Repérés automatiquement : un même prélèvement, d'un montant stable, à date régulière, sur au moins 3 mois. Renomme-les en cliquant sur leur nom. Pour chacun, demande-toi : est-ce que je l'ai utilisé ce mois-ci ?</p>
     ${act.length?act.map(row).join(''):`<div class="empty">${Object.keys(months).length?'Aucun abonnement détecté pour l’instant : il faut au moins 3 mois de relevés.':'Importe tes relevés (idéalement 3 mois ou plus) pour que l’appli repère tes abonnements.'}</div>`}
   </section>
+  ${probs.length?`<section class="card" aria-labelledby="h-abo3"><h2 id="h-abo3">Probables</h2><p class="muted" style="margin:0;font-size:14px">Des marques d'abonnement connues, vues 1 ou 2 fois seulement. Elles passeront dans « Tes abonnements » au 3e prélèvement. Coût si tu les gardes : <strong class="num">${eur(probs.reduce((a,x)=>a+x.montant,0))}</strong> par mois.</p>${probs.map(row).join('')}</section>`:''}
   ${old.length?`<section class="card" aria-labelledby="h-abo2"><h2 id="h-abo2">Arrêtés ou résiliés ?</h2><p class="muted" style="margin:0;font-size:14px">Plus prélevés depuis plus de 45 jours. Vérifie qu'ils sont bien résiliés.</p>${old.map(row).join('')}</section>`:''}
   ${(cfg.aboIgnore||[]).length?`<div class="muted" style="font-size:13px">${cfg.aboIgnore.length} élément(s) masqué(s). <button class="linkbtn" data-act="aboreset">Tout réafficher</button></div>`:''}
   </div>`; }
@@ -919,12 +958,13 @@ function viewDash(){
     <ul class="virs">${virs.map((v,i)=>`<li class="vir ${m.virs[i]?'done':''}"><input type="checkbox" id="vir-${i}" data-act="vir" data-i="${i}" ${m.virs[i]?'checked':''}><label for="vir-${i}"><span class="n">${esc(v.nom)}</span><span class="v">${eur(v.montant)}</span></label></li>`).join('')}</ul>
   </section>`:''}
   ${viewReminder()}
+  ${viewFreelanceHint()}
   ${cfg.onboardSkipped&&!cfg.onboarded?`<section class="card" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--ok-bg)"><div style="display:flex;flex-direction:column;gap:2px"><strong>Ton cockpit n'est pas encore réglé</strong><span class="muted" style="font-size:14px">2 minutes de questions pour avoir des chiffres et des objectifs qui te correspondent.</span></div><button class="btn" data-act="wizard">Compléter mon profil</button></section>`:''}
   <section class="kpis" aria-label="Indicateurs clés">
     <div class="kpi">${ht('div','k-pat','Patrimoine total','muted')}${ip('k-pat','Somme des soldes de tous tes comptes (courants, livrets, placements), tels que tu les as saisis ou que les relevés les ont mis à jour.')}<div class="big">${eur(total)}</div><div class="sub">${comptes.length} compte${comptes.length>1?'s':''}</div></div>
     <div class="kpi">${ht('div','k-dis','Épargne disponible','muted')}${ip('k-dis','Somme des comptes cochés « Disponible » (livrets que tu peux retirer à tout moment). C’est ton matelas de sécurité, comparé à l’objectif fixé dans Réglages.')}<div class="big ${dispo<seuil?'bad':'good'}">${eur(dispo)}</div><div class="sub ${dispo<seuil?'bad':''}">${dispo<seuil?`Il manque ${eur(seuil-dispo)} pour ton matelas de ${eur(seuil)}`:seuil>0?'Matelas de sécurité atteint':'Fixe ton matelas visé dans Réglages'}</div></div>
     <div class="kpi">${ht('div','k-tx',"Taux d'épargne · "+esc(shortMonth(cur)),'muted')}${ip('k-tx','Ce qui est parti vers ton épargne ce mois-ci (moins ce que tu y as repris), divisé par tes revenus du mois. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${s.taux>=0.3?'good':s.n?'bad':''}">${s.n?Math.round(s.taux*100)+' %':'—'}</div><div class="sub">${s.n?`${eur(s.epargne)} épargnés sur ${eur(s.revenus)}`:'Saisis ton relevé pour le calculer'}</div></div>
-    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture, Paris & jeux d’argent (mises moins gains) et Autre / imprévu, sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${pb?'':'<strong>Fixe ton budget plaisir dans Réglages.</strong> '}${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
+    <div class="kpi">${ht('div','k-pl','Budget plaisir restant','muted')}${ip('k-pl','Ton enveloppe plaisir moins tes dépenses du mois en Sorties & restos, Couple, Sneakers & shopping, Voyages, Loisirs & culture, Paris & jeux d’argent (mises moins gains) et Autre / imprévu, moins tes « Remboursements reçus » (un ami qui te rend sa part), sur tes comptes perso. Un achat pour revendre ne doit pas y compter : classe-le en « Pro · Achats / stock », il partira dans l’onglet Pro.')}<div class="big ${reste<0?'bad':''}">${eur(reste)}</div><div class="bar ${reste<0?'over':''}"><span style="width:${pb?Math.min(100,s.plaisir/pb*100):0}%"></span></div><div class="sub">${pb?'':'<strong>Fixe ton budget plaisir dans Réglages.</strong> '}${eur(s.plaisir)} dépensés sur ${eur(pb)}${daysLeft(cur)>0&&reste>0?` · soit <strong class="num">${eur(reste/daysLeft(cur))}</strong>/jour jusqu’à la fin du mois`:''}</div></div>
   </section>
   ${viewPlacer()}
   <div class="row">
@@ -988,6 +1028,9 @@ function viewHist(){
   </svg></div>`;
 }
 
+const isTransferLib=l=>/^\s*(vir|virement|to |transfer|payment from|lydia|wero|paylib|paypal)\b|\bvir(ement)? (inst|sepa|emis|recu|reçu|de|a|à|vers|pour)\b|virement (à|a|de|emis|en votre faveur)|\bwero\b|\blydia\b/i.test(String(l||''));
+function opDest(o){ const cs=cfg.comptes||[], src=srcOf(o); const vv=o.vers||((cfg.versRules||{})[fullKey(o.libelle)]); if(vv&&vv!==src&&cs.some(c=>c.id===vv)) return vv;
+  let best=null,bl=0,tie=false; cs.forEach(c=>{ const W=nameWords(c.nom); if(c.id===src||!W.length) return; if(libMatch(o.libelle,W)){ const l=W.join(' ').length; if(l>bl){best=c.id;bl=l;tie=false} else if(l===bl) tie=true } }); return tie?null:best }
 function findOp(id){ for(const k of Object.keys(months)){ const o=(months[k].ops||[]).find(x=>x.id===id); if(o) return {k,o} } return null }
 function viewRel(){
   const m=getMonth(cur), s=stats(cur);
@@ -1006,11 +1049,13 @@ function viewRel(){
     const g={}; ops.forEach(o=>{ const k=fullKey(o.libelle)||o.libelle; const x=g[k]||(g[k]={nom:(fullKey(o.libelle)?fullKey(o.libelle).split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' '):o.libelle),t:0,n:0}); x.t-=+o.montant||0; x.n++ });
     const top=Object.values(g).sort((a,b)=>b.t-a.t).slice(0,5);
     catSum=`<div class="triage" style="flex-direction:column;align-items:stretch"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center"><span><strong>${esc((CAT[relCat]||{}).nom||relCat)} · ${wide?'12 derniers mois':esc(periodLabel(cur))} : ${eur(tot)}</strong> en ${ops.length} opération${ops.length>1?'s':''}${wide?` · soit ${eur(tot/nm)} par mois`:''}</span><button class="btn ghost small" data-act="relcat" data-cat="">Tout afficher</button></div>${top.length>1?`<div style="display:flex;flex-direction:column;gap:4px">${top.map(x=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px"><span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nom)}${x.n>1?` <span class="muted">· ${x.n} fois</span>`:''}</span><span class="num" style="flex:none;white-space:nowrap">${eur(x.t)}</span></div>`).join('')}</div>`:''}</div>` }
-  const triage=relCat?catSum:nAutre?`<div class="triage"><span><strong>${nAutre} opération${nAutre>1?'s':''} en « Autre / imprévu »</strong> ce mois-ci. Classe-les une fois : toutes celles au même libellé suivront, ce mois-ci et les prochains.</span><button class="btn small" data-act="relcat" data-cat="autre">Les trier</button></div>`:'';
+  const propBox=pendingProp?`<div class="triage"><span>Seule cette opération a changé. Il reste <strong>${pendingProp.ids.length} autre${pendingProp.ids.length>1?'s':''} « ${esc(pendingProp.label.slice(0,40))} » en ${esc((CAT[pendingProp.old]||{}).nom||'')}</strong> : un virement à une personne peut avoir une raison différente à chaque fois.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="propall">Les passer aussi en ${esc((CAT[pendingProp.v]||{}).nom||'')}</button><button class="btn ghost small" data-act="propno">Non, juste celle-ci</button></span></div>`:'';
+  const triage=propBox+(relCat?catSum:nAutre?`<div class="triage"><span><strong>${nAutre} opération${nAutre>1?'s':''} en « Autre / imprévu »</strong> ce mois-ci. Classe-les une fois : toutes celles au même libellé suivront, ce mois-ci et les prochains.</span><button class="btn small" data-act="relcat" data-cat="autre">Les trier</button></div>`:'');
   const savOps=isSav?(accHist[relSrc].ops||[]).filter(o=>String(o.date).slice(0,7)===cur).sort((a,b)=>a.date<b.date?1:-1):[];
   const savName=isSav?((cfg.comptes||[]).find(c=>c.id===relSrc)||{}).nom:'';
   const srcCount=k=>m.ops.filter(o=>srcOf(o)===k).length;
   const filterSel=`<div class="f" style="display:flex;flex-direction:column;gap:4px"><label class="lbl" for="rel-src">Compte affiché</label><select id="rel-src"><option value="all" ${relSrc==='all'?'selected':''}>Dépenses : tous les comptes (${m.ops.length})</option>${curs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)} (${srcCount(c.id)})</option>`).join('')}${savAccs.map(c=>`<option value="${c.id}" ${relSrc===c.id?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>`+catSel;
+  const savList=epargnes();
   const opts=sel=>CATS.filter(c=>c.g!=='pro'||isIndep()||c.id===sel).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nom)}</option>`).join('');
   const lockedNote=m.cloture?`<div class="locked">Mois clôturé. Bilan figé.</div>`:'';
   return `<div style="display:flex;flex-direction:column;gap:20px">
@@ -1040,10 +1085,11 @@ function viewRel(){
       <div class="f"><label class="lbl" for="a-src">Payé avec</label><select id="a-src">${curs.map((c,i)=>`<option value="${c.id}" ${(relSrc===c.id||(relSrc==='all'&&i===0))?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
+    ${cfg.importWarn?`<div class="triage" style="background:var(--warn-bg)" role="alert"><span><strong>À vérifier après ton dernier import :</strong><br>${cfg.importWarn.msgs.map(esc).join('<br>')}</span><button class="btn ghost small" data-act="warnok">C'est vérifié</button></div>`:''}
     ${triage}
     ${ops.length?`<div class="tablebox"><table class="ops"><thead><tr><th>Date</th><th>Libellé</th>${relSrc==='all'?'<th>Compte</th>':''}<th>Catégorie</th><th class="r">Montant</th><th><span hidden>Supprimer</span></th></tr></thead><tbody>
     ${ops.map(o=>`<tr${o.cat==='interne'?' style="opacity:.6"':''}><td class="num c-date" style="white-space:nowrap">${o.date.slice(8,10)}/${o.date.slice(5,7)}${wide?'/'+o.date.slice(2,4):''}</td><td class="c-lib" style="min-width:160px">${esc(o.libelle)}</td>${relSrc==='all'?`<td class="c-src"><span class="pill">${esc(srcName(srcOf(o)))}</span></td>`:''}
-      <td class="c-cat"><label for="cat-${o.id}" hidden>Catégorie de ${esc(o.libelle)}</label><select id="cat-${o.id}" data-act="cat" data-id="${o.id}">${opts(o.cat)}</select></td>
+      <td class="c-cat"><label for="cat-${o.id}" hidden>Catégorie de ${esc(o.libelle)}</label><select id="cat-${o.id}" data-act="cat" data-id="${o.id}">${opts(o.cat)}</select>${CAT[o.cat]&&CAT[o.cat].g==='epargne'&&savList.length&&!opDest(o)?`<label for="vers-${o.id}" hidden>Vers quel compte</label><select id="vers-${o.id}" data-act="vers" data-id="${o.id}" style="margin-top:6px;border-color:var(--accent)"><option value="">${o.montant<0?'Vers quel compte ?':'Depuis quel compte ?'}</option>${savList.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('')}</select>`:''}</td>
       <td class="r num c-amt ${o.montant>0?'good':''}" style="white-space:nowrap">${o.montant>0?'+':''}${eur(o.montant,2)}</td>
       <td class="c-del"><button class="iconbtn" data-act="del" data-id="${o.id}" aria-label="Supprimer ${esc(o.libelle)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></td></tr>`).join('')}
     </tbody></table></div>`:relCat?`<div class="empty">${relCat==='autre'?'Plus rien à classer':'Aucune opération dans cette catégorie'} ${wide?'sur 12 mois':'en '+esc(periodLabel(cur))}.</div>`:`<div class="empty">Aucune opération en ${esc(periodLabel(cur))}. Importe ton CSV ou ajoute une dépense ci-dessus.</div>`}`}
@@ -1139,6 +1185,11 @@ document.addEventListener('click',e=>{
   else if(a==='viradd'){(cfg.virements=cfg.virements||[]).push({nom:'Nouveau virement',montant:0});saveCfg();render()}
   else if(a==='virdel'){cfg.virements.splice(+t.dataset.i,1);saveCfg();render()}
   else if(a==='accadd'){const ty=t.dataset.type||'epargne';(cfg.comptes=cfg.comptes||[]).push({id:uid(),nom:ty==='courant'?'Nouvelle banque':'Nouveau livret',type:ty,montant:0,dispo:false});saveCfg();render();const ins=document.querySelectorAll('[data-act="accset"][data-k="nom"]');if(ins.length){ins[ins.length-1].focus();ins[ins.length-1].select()}}
+  else if(a==='propall'&&pendingProp){ const P=pendingProp, touched=new Set(); let n=0; Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(P.ids.includes(x.id)){ x.cat=P.v; n++; touched.add(k) } })); touched.forEach(saveMonth); pendingProp=null; toast(`${n} autres opérations classées en ${CAT[P.v]?CAT[P.v].nom:P.v}.`); render() }
+  else if(a==='propno'){ pendingProp=null; render() }
+  else if(a==='warnok'){ cfg.importWarn=null; saveCfg(); render() }
+  else if(a==='freeoff'){ cfg.freelanceHintOff=true; saveCfg(); render() }
+  else if(a==='freeon'){ cfg.profil=cfg.profil==='salarie'||!cfg.profil?'mixte':'independant'; saveCfg(); tab='pro'; toast('Suivi freelance activé : choisis ton activité dans Réglages et coche « Pro » sur ton compte pro.'); render(); window.scrollTo({top:0}) }
   else if(a==='relcat'){relCat=t.dataset.cat||''; if(t.dataset.scope) relScope=t.dataset.scope; if(t.dataset.goto){tab='rel';window.scrollTo({top:0})} render()}
   else if(a==='info'){const id=t.dataset.id; if(openInfo.has(id)) openInfo.delete(id); else openInfo.add(id); render()}
   else if(a==='anaN'){anaN=+t.dataset.n; render()}
@@ -1160,12 +1211,17 @@ document.addEventListener('change',e=>{
   if(t.id==='imp-acc'){ impAcc=t.value; return }
   if(t.id==='rel-src'){ relSrc=t.value; render(); return }
   if(t.id==='rel-cat'){ relCat=t.value; render(); return }
+  if(a==='vers'){ const f=findOp(t.dataset.id); if(f&&t.value){ f.o.vers=t.value; const fk=fullKey(f.o.libelle), generic=!fk||(!fk.includes(' ')&&/^(interne|epargne|livret|transfer|compte|virement|permanent)$/.test(fk)); if(!generic){ (cfg.versRules=cfg.versRules||{})[fk]=t.value } saveMonth(f.k); saveCfg(); const nmv=(((cfg.comptes||[]).find(c=>c.id===t.value)||{}).nom||''); toast(generic?'Retenu pour ce virement : il va vers « '+nmv+' ».':'Retenu : ce virement et les suivants au même libellé vont vers « '+nmv+' ».'); render() } return }
   if(t.id==='rel-scope'){ relScope=t.value; render(); return }
   if(t.id==='csv'){ readFile(t.files&&t.files[0]); t.value=''; return }
   if(!a) return;
   if(a==='vir'){const m=getMonth(cur);m.virs[+t.dataset.i]=t.checked;saveMonth(cur);render()}
   else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){setSolde(c,num(t.value));saveCfg();render()}}
-  else if(a==='cat'){const f=findOp(t.dataset.id);const o=f&&f.o;if(o){const v=t.value, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([f.k]); let n=0;
+  else if(a==='cat'){const f=findOp(t.dataset.id);const o=f&&f.o;if(o){const v=t.value, oldCat=o.cat, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([f.k]); let n=0; pendingProp=null;
+    if(fk&&isTransferLib(o.libelle)){ const others=[]; Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat===oldCat&&oldCat!==v) others.push(x.id) }));
+      if(cfg.regles&&cfg.regles['f:'+fk]){ delete cfg.regles['f:'+fk]; saveCfg() }
+      if(others.length) pendingProp={fk,pos,v,ids:others,label:o.libelle,old:oldCat};
+      saveMonth(f.k); render(); return }
     if(fk){ (cfg.regles=cfg.regles||{})['f:'+fk]=v; const old=ruleKey(o.libelle); if(old&&cfg.regles[old]&&cfg.regles[old]!==v) delete cfg.regles[old];
       Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat!==v){ x.cat=v; n++; touched.add(k) } })); saveCfg() }
     touched.forEach(saveMonth); if(n) toast(`${n+1} opérations « ${o.libelle.slice(0,40)} » classées en ${CAT[v]?CAT[v].nom:v}.`); render()}}
@@ -1195,7 +1251,14 @@ function readFile(f){ if(!f) return; const r=new FileReader();
   r.onload=()=>{ let txt=String(r.result||''); if(txt.includes(String.fromCharCode(65533))){ const r2=new FileReader(); r2.onload=()=>finish(String(r2.result||'')); r2.readAsText(f,'windows-1252'); } else finish(txt) };
   r.onerror=()=>toast('Impossible de lire ce fichier.');
   r.readAsText(f,'utf-8');
-  function finish(t){ const ops=parseBank(t); if(!ops){ const hdr=splitCSV(t).slice(0,8).find(r=>r.filter(x=>x).length>=3)||[]; toast('Colonnes non reconnues. Colonnes trouvées : '+hdr.slice(0,8).map(x=>String(x).slice(0,20)).join(' | ')+'. Envoie-les à Claude pour adapter l’import.'); return} if(!ops.length){toast('Aucune opération trouvée dans ce fichier.');return} const acc=(cfg.comptes||[]).find(c=>c.id===impAcc); if(!acc){toast('Ajoute d’abord un compte dans Réglages.');return} if(isCourant(acc)) importOps(ops,acc.id); else importSavings(acc.id,ops) } }
+  function finish(t){ const ops=parseBank(t); if(!ops){ const hdr=splitCSV(t).slice(0,8).find(r=>r.filter(x=>x).length>=3)||[]; toast('Colonnes non reconnues. Colonnes trouvées : '+hdr.slice(0,8).map(x=>String(x).slice(0,20)).join(' | ')+'. Envoie-les à Claude pour adapter l’import.'); return} if(!ops.length){toast('Aucune opération trouvée dans ce fichier.');return} let acc=(cfg.comptes||[]).find(c=>c.id===impAcc); if(!acc){toast('Ajoute d’abord un compte dans Réglages.');return}
+    let note=''; const det=detectBank(t);
+    if(det&&isCourant(acc)&&!det.re.test(deacc(acc.nom))){ const match=courants().find(c=>det.re.test(deacc(c.nom)));
+      const accHasOps=Object.values(months).some(m=>(m.ops||[]).some(o=>srcOf(o)===acc.id));
+      if(match){ acc=match; impAcc=match.id; note=`Fichier ${det.n} reconnu : importé dans « ${match.nom} ».` }
+      else if(!accHasOps&&/compte courant|compte principal|nouvelle banque/.test(deacc(acc.nom))){ acc.nom=det.n; if(det.pro&&isIndep()) acc.pro=true; saveCfg(); note=`Fichier ${det.n} reconnu : ton compte s'appelle maintenant « ${det.n} ».` }
+      else if(det.neo&&accHasOps){ const nc={id:uid(),nom:det.n,type:'courant',montant:0,dispo:false,pro:!!(det.pro&&isIndep())}; cfg.comptes.push(nc); saveCfg(); acc=nc; impAcc=nc.id; note=`Fichier ${det.n} reconnu : compte « ${det.n} » créé pour ne pas le mélanger avec tes autres comptes. Mets son solde dans Réglages.` } }
+    if(isCourant(acc)) importOps(ops,acc.id,note); else importSavings(acc.id,ops) } }
 document.addEventListener('dragover',e=>{const d=document.getElementById('drop'); if(d&&d.contains(e.target)){e.preventDefault();d.classList.add('on')}});
 document.addEventListener('dragleave',e=>{const d=document.getElementById('drop'); if(d) d.classList.remove('on')});
 document.addEventListener('drop',e=>{const d=document.getElementById('drop'); if(d&&d.contains(e.target)){e.preventDefault();d.classList.remove('on');readFile(e.dataTransfer.files&&e.dataTransfer.files[0])}});
