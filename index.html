@@ -151,20 +151,103 @@ td.r,th.r{text-align:right}
 .editrow input[type=text]{flex:1 1 140px;min-width:0}
 .locked{background:var(--ok-bg);color:var(--accent);padding:10px 14px;border-radius:12px;font-weight:600}
 
-.wz{max-width:640px;margin:0 auto;width:100%}
-.wz .steps{display:flex;gap:6px}
-.wz .steps span{flex:1;height:6px;border-radius:99px;background:var(--sunk)}
-.wz .steps span.on{background:var(--accent)}
-.wz h2{font-size:24px}
-.wz .lead{margin:0;color:var(--muted);max-width:56ch}
+.wz{max-width:480px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:14px;padding-bottom:20px}
 .wz .q{display:flex;flex-direction:column;gap:6px}
 .wz .q label{font-weight:600}
 .wz .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font:500 14px var(--sans);padding:8px 12px;min-height:38px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--ink);cursor:pointer}
 .chip:hover{border-color:var(--accent);color:var(--accent)}
-.wz .nav{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .linkbtn{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px 4px}
-.wz .sum{display:grid;grid-template-columns:1fr auto;gap:6px 16px;background:var(--sunk);border-radius:12px;padding:14px}
+.wzstack{display:flex;flex-direction:column;gap:14px}
+.wztop{display:flex;align-items:center;gap:12px}
+.wzback{width:40px;height:40px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+.wzback svg,.wzok svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.wzprog{flex:1;height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.wzprog span{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.wzq{font-size:26px;line-height:1.2;text-align:center;margin:6px 0 0;letter-spacing:-.02em}
+.wzhint{text-align:center;color:var(--muted);font-size:13px;margin:0}
+.wzsubq{font-weight:600;font-size:14px;text-align:center;margin-top:2px}
+.wzc{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 12px 32px -20px rgba(30,27,75,.45)}
+.wzc-h{display:flex;align-items:center;gap:12px}
+.wzc-h>div{flex:1;display:flex;flex-direction:column;min-width:0}
+.wzc-h strong{font-size:17px}
+.wzc-h span{font-size:13px;color:var(--muted)}
+.wzico{flex:none;width:44px;height:44px;border-radius:14px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);display:grid;place-items:center}
+.wzico svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wzpass{flex:none;background:var(--sunk);border:none;border-radius:99px;padding:6px 12px;min-height:0;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
+.wzbig{display:flex;align-items:baseline;justify-content:center;gap:6px;background:var(--sunk);border-radius:16px;padding:14px 12px;transition:box-shadow .2s}
+.wzbig:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 40%,transparent)}
+.wz input.wzamt{font:700 46px/1.1 var(--sans);border:none;background:transparent;color:var(--ink);text-align:right;padding:0;min-height:0;max-width:7.5ch;min-width:1.6ch;outline:none;box-shadow:none;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.wzamt::placeholder{color:var(--muted);opacity:.45}
+.wzbig .cur{font:700 34px var(--sans);color:var(--ink)}
+.btn.wzok{width:100%;min-height:54px;border-radius:16px;font-size:17px;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .25s,color .25s,transform .15s}
+.btn.wzok.later{background:var(--sunk);color:var(--muted)}
+.btn.wzok.done{transform:scale(1.02)}
+.btn.wzok:active{transform:scale(.98)}
+.wzdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wzday{aspect-ratio:1;min-height:0;border-radius:50%;border:none;background:var(--sunk);color:var(--ink);font:500 14px var(--sans);cursor:pointer;padding:0;transition:background .15s,color .15s}
+.wzday:hover{background:color-mix(in srgb,var(--c) 18%,var(--sunk))}
+.wzday.on{background:var(--c);color:#fff;font-weight:700}
+.wzringbox{display:flex;flex-direction:column;gap:10px;align-items:center}
+.wzring{position:relative;width:140px;height:140px}
+.wzring svg,.wzbigring svg{width:100%;height:100%;transform:rotate(-90deg);display:block}
+.wzring circle,.wzbigring circle{fill:none;stroke-width:12}
+.wzring .trk,.wzbigring .trk{stroke:var(--sunk)}
+.wzring .seg{transition:stroke-dasharray .65s cubic-bezier(.2,.8,.2,1),stroke-dashoffset .65s cubic-bezier(.2,.8,.2,1)}
+.wzring .mid,.wzbigring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.wzring .mid strong{font-size:22px;letter-spacing:-.02em}
+.wzring .mid span{font-size:12px;color:var(--muted)}
+.wzleg{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.wzleg span{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.wzleg i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.wzbigring{position:relative;width:min(280px,76vw);aspect-ratio:1;margin:4px auto}
+.wzbigring circle{stroke-width:8}
+.wzbigring .fill{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:0 400;opacity:0;transition:stroke-dasharray .8s cubic-bezier(.2,.8,.2,1),opacity .2s}
+.wzbigring.inp.on .fill,.wzbigring.done.go .fill{opacity:1}
+.wzbigring.inp.on .fill{stroke-dasharray:326.73 400}
+.wzbigring.done{width:min(220px,62vw)}
+.wzbigring.done circle{stroke-width:10}
+.wzbigring.done .mid strong{font-size:44px;letter-spacing:-.03em}
+.wzbigring .wzbig{background:transparent;padding:0;box-shadow:none}
+.wzbigring input.wzamt{font-size:54px}
+.wztiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wztile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px 10px;min-height:0;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:500 12.5px/1.2 var(--sans);cursor:pointer;text-align:center;transition:border-color .15s,background .15s,transform .12s}
+.wztile:active{transform:scale(.96)}
+.wztile b{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:#fff;font:700 16px var(--sans);background:var(--t)}
+.wztile small{color:var(--muted);font-size:11.5px}
+.wztile.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--surface))}
+.wztile.on::after{content:'✓';position:absolute;top:6px;right:7px;width:18px;height:18px;border-radius:50%;background:var(--c);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.wzopts{display:flex;flex-direction:column;gap:8px}
+.wzopt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:500 15px var(--sans);cursor:pointer;text-align:left;min-height:0;transition:border-color .15s,background .15s}
+.wzopt.on{border-color:var(--accent);background:var(--ok-bg)}
+.wzopt .wzico{--c:var(--accent)!important}
+.wzseg{display:flex;background:var(--sunk);border-radius:12px;padding:4px;gap:4px}
+.wzseg button{flex:1;border:none;background:transparent;border-radius:9px;padding:8px;min-height:0;font:500 14px var(--sans);color:var(--muted);cursor:pointer}
+.wzseg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.wzsug{align-self:center;border:1px dashed var(--c);background:transparent;color:var(--ink);border-radius:99px;padding:8px 14px;min-height:0;font:400 13px var(--sans);cursor:pointer}
+.wzobj{display:flex;flex-direction:column;gap:8px;background:var(--sunk);border-radius:14px;padding:14px}
+.wzbar{display:flex;height:12px;border-radius:99px;overflow:hidden;gap:2px}
+.wzsplash{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;min-height:62vh;justify-content:center}
+.wzsplash h1{font-size:36px;letter-spacing:-.03em;margin:4px 0 0;animation:wzup .5s .7s both}
+.wzsplash p{margin:0;color:var(--muted);font-size:16px;line-height:1.5;animation:wzup .5s .8s both}
+.wzsplash .wzok{max-width:340px;margin-top:10px;animation:wzup .5s .9s both}
+.wzsplash .linkbtn{animation:wzup .5s 1s both}
+.wzlogo{width:116px;height:116px;border-radius:30px;overflow:hidden;box-shadow:0 22px 44px -18px rgba(79,70,229,.75);animation:wzpop .7s cubic-bezier(.2,1.4,.4,1) both;flex:none}
+.wzlogo.sm{width:64px;height:64px;border-radius:18px;margin:0 auto;animation:none}
+.wzlogo svg{width:100%;height:100%;display:block}
+.wzlogo .dr{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:wzdraw .7s .2s cubic-bezier(.6,0,.2,1) forwards}
+.wzlogo .dr2{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:wzdraw .4s .6s ease-out forwards}
+.wzlogo .dr3{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:wzdraw .25s .9s ease-out forwards}
+.wzlogo.sm .dr,.wzlogo.sm .dr2,.wzlogo.sm .dr3{animation:none;opacity:1;stroke-dashoffset:0}
+@keyframes wzpop{from{transform:scale(.55);opacity:0}}
+@keyframes wzdraw{0%{opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+@keyframes wzup{from{transform:translateY(14px);opacity:0}}
+@media (max-width:640px){.wz{gap:12px}.wzring{width:124px;height:124px}.wzring .mid strong{font-size:20px}.wz .wzringbox .wzleg{display:none}.wzq{font-size:23px}.wz input.wzamt{font-size:42px}.wzbigring input.wzamt{font-size:50px}}
+.wz .enter{animation:wzin .4s cubic-bezier(.2,.8,.2,1) both}
+.wz .enter.back{animation-name:wzinb}
+@keyframes wzin{from{transform:translateX(32px);opacity:0}}
+@keyframes wzinb{from{transform:translateX(-32px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.wz *,.wz *::after{animation:none!important;transition:none!important}.wzlogo .dr,.wzlogo .dr2,.wzlogo .dr3{opacity:1;stroke-dashoffset:0}}
 .card select,.card input{max-width:100%}
 td.num,th.num,.pill{white-space:nowrap}
 .hrow{display:flex;align-items:center;gap:8px}
@@ -810,94 +893,146 @@ const isLivret=n=>/livret|ldds|lep\b|lddc/i.test(n||'');
 function initWz(){ const c=cfg||{}; const b=c.budgets||{};
   let fixes=(c.fixes||[]).map(x=>({...x}));
   if(!fixes.length) FIX_CATS.forEach(([id,nom])=>{ if(+b[id]>0) fixes.push({nom,montant:+b[id],cat:id}) });
+  const take=cat=>{const i=fixes.findIndex(f=>f.cat===cat); return i<0?null:fixes.splice(i,1)[0]};
+  const lo=take('logement'), tr=take('transport'), co=take('courses'), de=take('papa');
+  const sv=v=>v==null||v===''?'':String(v).replace('.',',');
+  const abos=[], autres=[];
+  fixes.forEach(f=>{ (f.cat==='abos'||f.cat==='sport'?abos:autres).push({nom:f.nom||'',montant:sv(f.montant),cat:f.cat||'abos'}) });
   const comptes=(c.comptes&&c.comptes.length?c.comptes:[{id:uid(),nom:'Compte courant',type:'courant',montant:0,dispo:false}]).map(x=>({...x}));
   const mc=c.micro||{};
-  return {step:0,profil:c.profil||'salarie',activite:mc.activite||'vente',decl:mc.decl||'mensuel',vl:!!mc.vl,caMoyen:mc.caMoyen?String(mc.caMoyen):'',achats:mc.achatsMoyens?String(mc.achatsMoyens):'',salaire:c.salaireFixe?String(c.salaireFixe):'',nom:c.nomTitulaire||'',revenu:c.revenus?String(c.revenus):'',aides:'',jour:String(c.jourPaie||''),fixes,comptes,
+  return {step:0,profil:c.profil||'salarie',activite:mc.activite||'vente',decl:mc.decl||'mensuel',vl:!!mc.vl,caMoyen:mc.caMoyen?String(mc.caMoyen):'',achats:mc.achatsMoyens?String(mc.achatsMoyens):'',salaire:c.salaireFixe?String(c.salaireFixe):'',nom:c.nomTitulaire||'',revenu:c.revenus?String(c.revenus-(c.profil==='mixte'?(+c.salaireFixe||0):0)):'',aides:'',jour:String(c.jourPaie||''),
+    loyer:lo?sv(lo.montant):'',loyerNom:lo?lo.nom:'',loyerJour:lo&&lo.jour?String(lo.jour):'',transport:tr?sv(tr.montant):'',trNom:tr?tr.nom:'',courses:co?sv(co.montant):'',coNom:co?co.nom:'',coursesFreq:'mois',dette:de?sv(de.montant):'',deNom:de?de.nom:'',
+    abos,autres,comptes,
     plaisir:c.plaisirBudget?String(c.plaisirBudget):'',epargne:b.epargne?String(b.epargne):'',seuil:c.seuilSecurite?String(c.seuilSecurite):'',
     obj:[{h:3,nom:'',cible:'',type:'epargne'},{h:6,nom:'',cible:'',type:'epargne'},{h:12,nom:'',cible:'',type:'epargne'}]} }
 const wzN=v=>{const n=pNum(v);return isNaN(n)?0:n};
 const wzIndep=()=>wz&&(wz.profil==='independant'||wz.profil==='mixte');
-function wzTotals(){ const rev=wzN(wz.revenu)+wzN(wz.aides)+(wz.profil==='mixte'?wzN(wz.salaire):0), fix=wz.fixes.reduce((a,f)=>a+wzN(f.montant),0); return {rev,fix,reste:rev-fix} }
+const wzCourses=()=>wz.coursesFreq==='semaine'?Math.round(wzN(wz.courses)*52/12):wzN(wz.courses);
+function wzFixList(){ const L=[]; const add=(nom,m,cat,jour)=>{ const v=typeof m==='number'?m:wzN(m); if(v>0) L.push({nom,montant:v,cat,...(jour?{jour}:{})}) };
+  const lj=Math.round(wzN(wz.loyerJour)); add(wz.loyerNom||'Loyer ou participation',wz.loyer,'logement',lj>=1&&lj<=31?lj:0);
+  wz.abos.forEach(a=>add(String(a.nom).trim()||'Abonnement',a.montant,a.cat||'abos'));
+  add(wz.trNom||'Transport',wz.transport,'transport');
+  add(wz.coNom||'Courses',wzCourses(),'courses');
+  add(wz.deNom||'Remboursement de prêt',wz.dette,'papa');
+  wz.autres.forEach(a=>{ if(String(a.nom).trim()||wzN(a.montant)) L.push({nom:String(a.nom).trim()||'Charge',montant:wzN(a.montant),cat:a.cat||'abos'}) });
+  return L }
+function wzTotals(){ const rev=wzN(wz.revenu)+wzN(wz.aides)+(wz.profil==='mixte'?wzN(wz.salaire):0), fix=wzFixList().reduce((a,f)=>a+f.montant,0); return {rev,fix,reste:rev-fix} }
 function wzSuggest(){ const t=wzTotals(); const pl=Math.max(0,Math.round(Math.min(t.reste*0.6,t.rev*0.3)/10)*10); const ep=Math.max(0,Math.round(Math.max(t.rev*0.2,0)/10)*10); return {pl,ep:Math.min(ep,Math.max(0,t.reste-pl)),seuil:Math.round((t.fix+pl)*3/100)*100} }
 function wzInput(el){ const k=el.dataset.wz, arr=el.dataset.arr, i=+el.dataset.i;
   if(!arr&&el.type==='checkbox'){ wz[k]=el.checked; return }
   if(arr){ const row=wz[arr][i]; if(!row) return; row[k]=el.type==='checkbox'?el.checked:el.value; if(arr==='comptes'&&k==='nom'&&row.type!=='courant') row.dispo=isLivret(el.value) } else wz[k]=el.value }
-const WZ_STEPS=7;
-function viewWizard(){ const st=wz.step, t=wzTotals(), sg=wzSuggest();
-  const dots=`<div class="steps" aria-hidden="true">${Array.from({length:WZ_STEPS},(_,i)=>`<span class="${i<=st?'on':''}"></span>`).join('')}</div>`;
-  const skip=forceWizard?`<button class="linkbtn" data-act="wz-cancel">Annuler</button>`:`<button class="linkbtn" data-act="wz-skip">Passer pour l'instant</button>`;
-  const nav=(next,label)=>`<div class="nav">${st>0?`<button class="btn ghost" data-act="wz-prev">Retour</button>`:'<span></span>'}<div style="display:flex;align-items:center;gap:12px">${st<WZ_STEPS-1?skip:''}<button class="btn" data-act="${next||'wz-next'}">${label||'Continuer'}</button></div></div>`;
-  let body='';
-  if(st===0) body=`<div class="eyebrow">Bienvenue</div><h2>On règle ton cockpit en 2 minutes</h2>
-    <p class="lead">Quelques questions pour que tes chiffres, ton budget et tes objectifs soient vraiment les tiens. Tu pourras tout modifier ensuite.</p>
-    <div class="q"><label for="wz-prof">Ta situation</label><select id="wz-prof" data-wz="profil" style="max-width:320px"><option value="salarie" ${wz.profil==='salarie'?'selected':''}>Salarié(e), alternant(e) ou étudiant(e)</option><option value="independant" ${wz.profil==='independant'?'selected':''}>Micro-entrepreneur</option><option value="mixte" ${wz.profil==='mixte'?'selected':''}>Les deux : salarié(e) et micro-entrepreneur</option></select></div>
-    <div class="q"><label for="wz-nom">Ton prénom et nom</label><input type="text" id="wz-nom" data-wz="nom" value="${esc(wz.nom)}" placeholder="Ex. Alex Martin" autocomplete="name"><span class="muted" style="font-size:13px">Il sert à reconnaître les virements entre tes propres comptes. Il n'est visible que par toi.</span></div>
-    ${nav('wz-next','Commencer')}`;
-  if(st===1&&wzIndep()){ const d=MICRO[wz.activite]||MICRO.vente, rate=(d.taux+d.cfp+(wz.vl?d.vl:0))/100, ca=wzN(wz.caMoyen), ach=wzN(wz.achats), sug=Math.max(0,Math.floor((ca-ach-ca*rate)*0.8/10)*10);
-    body=`<div class="eyebrow">1 · Ton activité et tes revenus</div><h2>Comment fonctionne ta micro-entreprise ?</h2>
-    <div class="q"><label for="wz-act">Ton activité</label><select id="wz-act" data-wz="activite" style="max-width:340px">${Object.entries(MICRO).map(([k,v])=>`<option value="${k}" ${wz.activite===k?'selected':''}>${esc(v.nom)}</option>`).join('')}</select><span class="muted" style="font-size:13px">Cotisations 2026 : ${String(d.taux).replace('.',',')} % du chiffre d'affaires, plafond ${eur(d.plafond)} par an.</span></div>
-    <div class="q"><label for="wz-dec">Tu déclares ton chiffre d'affaires…</label><select id="wz-dec" data-wz="decl" style="max-width:240px"><option value="mensuel" ${wz.decl==='mensuel'?'selected':''}>Chaque mois</option><option value="trimestriel" ${wz.decl==='trimestriel'?'selected':''}>Chaque trimestre</option></select></div>
-    <div class="q"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="wz-vl" data-wz="vl" style="width:20px;height:20px;min-height:0;accent-color:var(--accent)" ${wz.vl?'checked':''}>J'ai choisi le versement libératoire de l'impôt (+${String(d.vl).replace('.',',')} %)</label></div>
-    <div class="q"><label for="wz-ca">Chiffre d'affaires moyen par mois, à peu près (€)</label><input class="amount" style="width:160px" id="wz-ca" data-wz="caMoyen" inputmode="decimal" value="${esc(wz.caMoyen)}" placeholder="1 500"></div>
-    <div class="q"><label for="wz-ach">Achats moyens par mois : stock, frais… (€)</label><input class="amount" style="width:160px" id="wz-ach" data-wz="achats" inputmode="decimal" value="${esc(wz.achats)}" placeholder="600"></div>
-    ${wz.profil==='mixte'?`<div class="q"><label for="wz-sal">Ton salaire net mensuel (€)</label><input class="amount" style="width:160px" id="wz-sal" data-wz="salaire" inputmode="decimal" value="${esc(wz.salaire)}" placeholder="1 200"></div>`:''}
-    <div class="q"><label for="wz-rev">Combien veux-tu te verser chaque mois depuis ton activité pour vivre ? (€)</label><input class="amount" style="width:160px" id="wz-rev" data-wz="revenu" inputmode="decimal" value="${esc(wz.revenu)}" placeholder="${sug||''}"><span class="muted" style="font-size:13px">${ca?`Sur ${eur(ca)} de CA, après ${eur(ach)} d'achats et ${eur(ca*rate)} de cotisations, il te reste environ ${eur(ca-ach-ca*rate)}. Je te conseille de te verser au plus 80 % de ce reste (${eur(sug)}) : le reste forme un coussin pour les mois creux.`:'Renseigne ton CA et tes achats pour avoir une suggestion.'}</span></div>
-    <div class="q"><label for="wz-aides">Autres revenus réguliers : aides, bourse, APL… (€)</label><input class="amount" style="width:160px" id="wz-aides" data-wz="aides" inputmode="decimal" value="${esc(wz.aides)}" placeholder="0"></div>
-    <div class="q"><label for="wz-jour">Quel jour du mois te verses-tu ce revenu ?</label><input class="amount" style="width:100px" type="number" min="1" max="31" id="wz-jour" data-wz="jour" value="${esc(wz.jour)}" placeholder="5"></div>
-    <div class="sum"><span>Revenu perso par mois</span><strong class="num" data-live="rev">${eur(t.rev)}</strong></div>
-    ${nav()}` }
-  else if(st===1) body=`<div class="eyebrow">1 · Tes revenus</div><h2>Combien reçois-tu chaque mois ?</h2>
-    <div class="q"><label for="wz-rev">Salaire net mensuel (€)</label><input class="amount" style="width:160px" id="wz-rev" data-wz="revenu" inputmode="decimal" value="${esc(wz.revenu)}" placeholder="1 200"></div>
-    <div class="q"><label for="wz-aides">Autres revenus réguliers : aides, bourse, APL… (€)</label><input class="amount" style="width:160px" id="wz-aides" data-wz="aides" inputmode="decimal" value="${esc(wz.aides)}" placeholder="0"></div>
-    <div class="q"><label for="wz-jour">Quel jour du mois reçois-tu ton salaire ?</label><input class="amount" style="width:100px" type="number" min="1" max="31" id="wz-jour" data-wz="jour" value="${esc(wz.jour)}" placeholder="27"></div>
-    <div class="sum"><span>Total par mois</span><strong class="num" data-live="rev">${eur(t.rev)}</strong></div>
-    ${nav()}`;
-  if(st===2) body=`<div class="eyebrow">2 · Tes charges fixes</div><h2>Qu'est-ce qui part tous les mois, quoi qu'il arrive ?</h2>
-    <p class="lead">Abonnements, téléphone, salle, transport, loyer ou participation… Ajoute chaque ligne avec son montant.</p>
-    <div class="chips">${FIX_PRESETS.map(([n,c],i)=>`<button class="chip" data-act="wz-addfix" data-i="${i}">+ ${esc(n)}</button>`).join('')}<button class="chip" data-act="wz-addfix" data-i="-1">+ Autre</button></div>
-    ${wz.fixes.map((f,i)=>`<div class="editrow"><label for="wf-n-${i}" hidden>Nom</label><input type="text" id="wf-n-${i}" data-wz="nom" data-arr="fixes" data-i="${i}" value="${esc(f.nom)}"><label for="wf-m-${i}" hidden>Montant</label><input class="amount" id="wf-m-${i}" data-wz="montant" data-arr="fixes" data-i="${i}" inputmode="decimal" value="${esc(f.montant)}" placeholder="0 €"><label for="wf-c-${i}" hidden>Catégorie</label><select id="wf-c-${i}" data-wz="cat" data-arr="fixes" data-i="${i}">${FIX_CATS.map(([id,n])=>`<option value="${id}" ${f.cat===id?'selected':''}>${esc(n)}</option>`).join('')}</select><button class="iconbtn" data-act="wz-del" data-arr="fixes" data-i="${i}" aria-label="Retirer ${esc(f.nom)}">✕</button></div>`).join('')}
-    <div class="sum"><span>Total des charges fixes</span><strong class="num" data-live="fix">${eur(t.fix)}</strong><span>Il te reste après ces charges</span><strong class="num" data-live="reste">${eur(t.reste)}</strong></div>
-    ${nav()}`;
-  if(st===3) body=`<div class="eyebrow">3 · Tes comptes</div><h2>Où est ton argent ?</h2>
-    <p class="lead">Ajoute chaque banque et chaque livret, avec son solde actuel. Tu peux les renommer comme tu veux (Boursorama, Crédit Agricole…).</p>
-    <div class="chips">${ACC_PRESETS.map(([n,t,pr],i)=>pr&&!wzIndep()?'':`<button class="chip" data-act="wz-addacc" data-i="${i}">+ ${esc(n)}</button>`).join('')}<button class="chip" data-act="wz-addacc" data-i="-1">+ Autre</button></div>
+
+/* ---------- onboarding : une question à la fois ---------- */
+const WZC={logement:'#4F46E5',abos:'#9333EA',transport:'#0369A1',courses:'#0F766E',papa:'#C2410C',autres:'#64748B',plaisir:'#DB2777',epargne:'#15803D'};
+const WZI={home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',play:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/>',car:'<path d="M5 16v-5l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><path d="M7 11h10"/>',cart:'<path d="M3 4h2l2.5 11h10L20 8H6.5"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/>',swap:'<path d="M4 9h14l-3.5-3.5"/><path d="M20 15H6l3.5 3.5"/>',party:'<path d="M7 3h10l-1.2 7.5a3.8 3.8 0 01-7.6 0z"/><path d="M12 14.5V20"/><path d="M8 21h8"/>',piggy:'<path d="M4.5 11.5a7 6 0 0113.6-2H20v4l-2 1.2V18h-3v-2h-4.5v2h-3v-2.5l-2.5-2z"/><path d="M10 6.5h4"/>',bank:'<path d="M3 10l9-5 9 5"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 20.5h18"/>',target:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',wallet:'<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',brief:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5h6v2M3 12.5h18"/>',both:'<circle cx="8" cy="9" r="3"/><path d="M2.5 20a5.5 5.5 0 0111 0"/><rect x="14" y="10" width="8" height="7" rx="1.5"/><path d="M16.5 10V8.5h3V10"/>',back:'<path d="M15 5l-7 7 7 7"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',chart:'<path d="M4 19h16"/><path d="M7 15v-4M12 15V7M17 15v-6"/>'};
+const wzSvg=k=>`<svg viewBox="0 0 24 24" aria-hidden="true">${WZI[k]}</svg>`;
+const wzIco=(k,c)=>`<span class="wzico" style="--c:${c||'var(--accent)'}">${wzSvg(k)}</span>`;
+const ABO_TILES=[['Forfait mobile',10,'abos'],['Netflix',13.49,'abos'],['Spotify',12.14,'abos'],['Disney+',9.99,'abos'],['Prime Video',6.99,'abos'],['YouTube Premium',12.99,'abos'],['Apple Music',10.99,'abos'],['Deezer',11.99,'abos'],['Canal+',24.99,'abos'],['iCloud+',2.99,'abos'],['PlayStation Plus',8.99,'abos'],['Xbox Game Pass',14.99,'abos'],['Basic-Fit',29.99,'sport'],['Fitness Park',34.95,'sport'],['Salle de sport',30,'sport']];
+const WZ_LOGO=`<svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="wz-lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C7D2FE"/></linearGradient></defs><rect width="512" height="512" fill="#4F46E5"/><path class="dr" pathLength="1" d="M370 146 A156 156 0 1 0 370 366" fill="none" stroke="url(#wz-lg)" stroke-width="84" stroke-linecap="round"/><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="54" stroke="#4F46E5"><line class="dr2" pathLength="1" x1="84" y1="216" x2="240" y2="216"/><polyline class="dr2" pathLength="1" points="84,292 200,292 322,186"/><polyline class="dr3" pathLength="1" points="276,182 326,182 326,232"/></g><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="30" stroke="#FFFFFF"><line class="dr2" pathLength="1" x1="84" y1="216" x2="240" y2="216"/><polyline class="dr2" pathLength="1" points="84,292 200,292 322,186"/><polyline class="dr3" pathLength="1" points="276,182 326,182 326,232"/></g></svg>`;
+const RC=2*Math.PI*52;
+const wzRM=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function wzFlow(){ const f=['splash','toi']; if(wzIndep()) f.push('micro'); f.push('salaire','jour','aides','loyer','abos','transport','courses','dette','plaisir','epargne','comptes','obj','done'); return f }
+const WZ_RING=['jour','aides','loyer','abos','transport','courses','dette','plaisir','epargne'];
+function wzHas(k){ if(k==='jour'||k==='loyerJour') return !!Math.round(wzN(wz[k])); return wzN(wz[k])>0 }
+function wzSegs(){ const s={logement:0,abos:0,transport:0,courses:0,papa:0,autres:0}; wzFixList().forEach(f=>{ const k=f.cat==='sport'?'abos':(s[f.cat]!==undefined?f.cat:'autres'); s[k]+=f.montant });
+  return [['logement','Logement'],['abos','Abonnements'],['transport','Transport'],['courses','Courses'],['papa','Remboursement'],['autres','Autres charges']].map(([k,n])=>({k,n,v:s[k]})).concat([{k:'plaisir',n:'Plaisir',v:wzN(wz.plaisir)},{k:'epargne',n:'Épargne',v:wzN(wz.epargne)}]) }
+const wzLeg=segs=>segs.filter(s=>s.v>0).map(s=>`<span style="--c:${WZC[s.k]}"><i></i>${esc(s.n)} <b class="num">${eur(s.v)}</b></span>`).join('');
+function wzRingHtml(){ const r=wz._ring||{}; const segs=wzSegs(); const rest=wz._rest==null?wzTotals().rev:wz._rest;
+  return `<div class="wzringbox"><div class="wzring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="52"/>${segs.map(s=>`<circle class="seg" data-seg="${s.k}" cx="60" cy="60" r="52" stroke="${WZC[s.k]}" stroke-dasharray="${(r[s.k]||[0,RC]).join(' ')}" stroke-dashoffset="${r[s.k+'o']||0}"/>`).join('')}</svg><div class="mid"><strong class="num${rest<0?' bad':''}" data-live="restant">${eur(rest)}</strong><span>restant</span></div></div><div class="wzleg" data-live="leg">${wzLeg(segs)}</div></div>` }
+function wzCount(el,from,to,fmt){ fmt=fmt||eur; cancelAnimationFrame(el._raf); if(from===to||wzRM()){ el.textContent=fmt(to); return } const t0=performance.now(), d=520; const stp=n=>{ const p=Math.min(1,(n-t0)/d), e=1-Math.pow(1-p,3); el.textContent=p<1?fmt(Math.round(from+(to-from)*e)):fmt(to); if(p<1) el._raf=requestAnimationFrame(stp) }; el._raf=requestAnimationFrame(stp) }
+function wzRing(){ if(!wz||!document.querySelector('.wzring')) return; const t=wzTotals(), segs=wzSegs(); const used=segs.reduce((a,s)=>a+s.v,0), tot=Math.max(t.rev,used,1); let off=0; wz._ring=wz._ring||{};
+  segs.forEach(s=>{ const len=s.v/tot*RC, g=len>4?1.6:0, da=[Math.max(0,len-g).toFixed(2),RC.toFixed(2)]; const el=document.querySelector('.wzring [data-seg="'+s.k+'"]'); if(el){ el.setAttribute('stroke-dasharray',da.join(' ')); el.setAttribute('stroke-dashoffset',(-off).toFixed(2)) } wz._ring[s.k]=da; wz._ring[s.k+'o']=(-off).toFixed(2); off+=len });
+  const rest=t.rev-used, el=document.querySelector('[data-live="restant"]'); if(el){ wzCount(el,wz._rest==null?t.rev:wz._rest,rest); el.classList.toggle('bad',rest<0) } wz._rest=rest;
+  const lg=document.querySelector('[data-live="leg"]'); if(lg) lg.innerHTML=wzLeg(segs) }
+function wzAfter(){ requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(!wz) return; wzRing();
+  const pg=document.querySelector('.wzprog span'); if(pg){ pg.style.width=pg.dataset.p+'%'; wz._prog=pg.dataset.p }
+  const dn=document.querySelector('.wzbigring.done'); if(dn&&!dn.dataset.ran){ dn.dataset.ran='1'; const p=+dn.dataset.p||0; if(p>0) dn.classList.add('go'); dn.querySelector('.fill').style.strokeDasharray=(Math.min(100,Math.max(0,p))/100*RC).toFixed(2)+' 400'; const n=dn.querySelector('[data-count]'); if(n) wzCount(n,0,p,v=>v+' %') }
+  if(wz._focus){ wz._focus=false; const i=document.querySelector('.wz .wzamt'); if(i&&window.innerWidth>640) i.focus() } })) }
+function viewWizard(){ const F=wzFlow(); wz.step=Math.max(0,Math.min(F.length-1,wz.step)); const key=F[wz.step], t=wzTotals(), sg=wzSuggest();
+  const enter=wz._shown!==key?(' enter'+(wz._dir<0?' back':'')):''; if(wz._shown!==key){ wz._shown=key; wz._focus=true }
+  const skip=key==='done'?'':forceWizard?`<button class="linkbtn" data-act="wz-cancel">Annuler</button>`:`<button class="linkbtn" data-act="wz-skip">Plus tard</button>`;
+  const pct=Math.round(wz.step/(F.length-1)*100);
+  const top=key==='splash'||key==='done'?'':`<div class="wztop"><button class="wzback" data-act="wz-prev" aria-label="Question précédente">${wzSvg('back')}</button><div class="wzprog" role="progressbar" aria-label="Progression" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${wz._prog==null?pct:wz._prog}%" data-p="${pct}"></span></div>${skip}</div>`;
+  const big=(k,id,lbl)=>`<div class="wzbig"><input id="${id}" class="wzamt num" data-wz="${k}" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${esc(wz[k])}" placeholder="0" aria-label="${esc(lbl)}" style="width:${Math.max(1,String(wz[k]||'0').length)+.6}ch"><span class="cur" aria-hidden="true">€</span></div>`;
+  const ok=(k,lbl)=>{ const h=wzHas(k); return `<button class="btn wzok${h?'':' later'}" data-act="wz-ok" data-k="${k}" data-lbl="${esc(lbl||'Valider')}">${h?esc(lbl||'Valider'):'Plus tard →'}</button>` };
+  const days=k=>`<div class="wzdays" role="group" aria-label="Jour du mois">${Array.from({length:31},(_,i)=>i+1).map(d=>`<button class="wzday${+wz[k]===d?' on':''}" data-act="wz-day" data-k="${k}" data-v="${d}" aria-pressed="${+wz[k]===d}">${d}</button>`).join('')}</div>`;
+  const card=(o)=>`<div class="wzc${enter}"><div class="wzc-h">${wzIco(o.ico,o.col)}<div><strong>${o.title}</strong><span>${o.sub}</span></div>${o.pass===false?'':`<button class="wzpass" data-act="wz-next">Passer</button>`}</div>${o.body}</div>`;
+  const hint=s=>`<p class="wzhint">${s||'Tu pourras modifier ce montant plus tard'}</p>`;
+  let col='#4F46E5', body='';
+  if(key==='splash') body=`<div class="wzsplash"><div class="wzlogo">${WZ_LOGO}</div><h1>Cockpit</h1><p>On règle ton budget en 2 minutes.<br>Une question à la fois.</p><button class="btn wzok" data-act="wz-next">Commencer</button>${skip}</div>`;
+  else if(key==='toi') body=`<div class="wzstack${enter}"><h2 class="wzq">D'abord, c'est quoi ta situation ?</h2>
+    <div class="wzopts" role="radiogroup" aria-label="Ta situation">${[['salarie','user','Salarié(e), alternant(e) ou étudiant(e)'],['independant','brief','Micro-entrepreneur'],['mixte','both','Les deux : salarié(e) et micro-entrepreneur']].map(([v,ic,l])=>`<button class="wzopt${wz.profil===v?' on':''}" role="radio" aria-checked="${wz.profil===v}" data-act="wz-prof" data-v="${v}">${wzIco(ic)}<span>${l}</span></button>`).join('')}</div>
+    <div class="wzc"><div class="q"><label for="wz-nom">Ton prénom et nom</label><input type="text" id="wz-nom" data-wz="nom" value="${esc(wz.nom)}" placeholder="Ex. Alex Martin" autocomplete="name"><span class="muted" style="font-size:13px">Il sert à reconnaître les virements entre tes propres comptes. Toi seul le vois.</span></div></div>
+    <button class="btn wzok" data-act="wz-next">Continuer</button></div>`;
+  else if(key==='micro'){ const d=MICRO[wz.activite]||MICRO.vente, rate=(d.taux+d.cfp+(wz.vl?d.vl:0))/100;
+    body=card({ico:'brief',col,title:'Ton activité',sub:'Pour calculer tes cotisations et ton vrai bénéfice',pass:false,body:`
+    <div class="q"><label for="wz-act">Ton activité</label><select id="wz-act" data-wz="activite">${Object.entries(MICRO).map(([k,v])=>`<option value="${k}" ${wz.activite===k?'selected':''}>${esc(v.nom)}</option>`).join('')}</select><span class="muted" style="font-size:13px">Cotisations 2026 : ${String(d.taux).replace('.',',')} % du chiffre d'affaires, plafond ${eur(d.plafond)} par an.</span></div>
+    <div class="q"><label for="wz-dec">Tu déclares ton chiffre d'affaires…</label><select id="wz-dec" data-wz="decl"><option value="mensuel" ${wz.decl==='mensuel'?'selected':''}>Chaque mois</option><option value="trimestriel" ${wz.decl==='trimestriel'?'selected':''}>Chaque trimestre</option></select></div>
+    <div class="q"><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="wz-vl" data-wz="vl" style="width:20px;height:20px;min-height:0;accent-color:var(--accent)" ${wz.vl?'checked':''}>Versement libératoire de l'impôt (+${String(d.vl).replace('.',',')} %)</label></div>
+    <div class="q"><label for="wz-ca">Chiffre d'affaires moyen par mois (€)</label><input class="amount" id="wz-ca" data-wz="caMoyen" inputmode="decimal" value="${esc(wz.caMoyen)}" placeholder="1 500"></div>
+    <div class="q"><label for="wz-ach">Achats moyens par mois : stock, frais… (€)</label><input class="amount" id="wz-ach" data-wz="achats" inputmode="decimal" value="${esc(wz.achats)}" placeholder="600"></div>
+    ${wz.profil==='mixte'?`<div class="q"><label for="wz-rev">Ce que tu te verses chaque mois depuis l'activité (€)</label><input class="amount" id="wz-rev" data-wz="revenu" inputmode="decimal" value="${esc(wz.revenu)}" placeholder="0"><span class="muted" style="font-size:13px">Garde au moins 20 % du bénéfice dans l'activité pour les mois creux.</span></div>`:''}`})+`<button class="btn wzok" data-act="wz-next">Continuer</button>` }
+  else if(key==='salaire'){ const k=wz.profil==='mixte'?'salaire':'revenu', id=k==='salaire'?'wz-sal':'wz-rev';
+    let tip='Net, après impôts. '+'Tu pourras modifier ce montant plus tard';
+    if(wz.profil==='independant'){ const d=MICRO[wz.activite]||MICRO.vente, rate=(d.taux+d.cfp+(wz.vl?d.vl:0))/100, ca=wzN(wz.caMoyen), ach=wzN(wz.achats), net=ca-ach-ca*rate, sug=Math.max(0,Math.floor(net*0.8/10)*10); tip=ca?`Sur ${eur(ca)} de CA, il te reste environ ${eur(net)} après achats et cotisations. Verse-toi au plus ${eur(sug)} : le reste, c'est ton coussin pour les mois creux.`:'Le montant que tu transfères de ton activité vers ton compte perso.' }
+    body=`<div class="wzstack${enter}"><h2 class="wzq">${wz.profil==='independant'?'Combien te verses-tu chaque mois ?':'Pour commencer, inscris ton salaire'}</h2>
+    <div class="wzbigring inp${wzHas(k)?' on':''}" data-k="${k}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="52"/><circle class="fill" cx="60" cy="60" r="52"/></svg><div class="mid">${big(k,id,wz.profil==='independant'?'Revenu versé par mois':'Salaire net mensuel')}<span class="muted" style="font-size:13px">par mois</span></div></div>
+    ${hint(tip)}${ok(k)}</div>` }
+  else if(key==='jour') body=card({ico:'cal',col,title:wz.profil==='independant'?'Ton versement':'Ton salaire',sub:'Quel jour du mois arrive-t-il ?',body:days('jour')})+hint('Sert à compter les jours jusqu’à ta prochaine paie')+ok('jour',wzHas('jour')?`Le ${Math.round(wzN(wz.jour))} de chaque mois`:'Valider');
+  else if(key==='aides') body=card({ico:'wallet',col,title:'Autres revenus',sub:'Aides, bourse, APL, pension… par mois',body:big('aides','wz-aides','Autres revenus par mois')})+hint()+ok('aides');
+  else if(key==='loyer'){ col=WZC.logement; body=card({ico:'home',col,title:'Loyer',sub:'Montant mensuel, ou ta participation à la maison',body:big('loyer','wz-loyer','Loyer par mois')+`<div class="wzsubq">Quel jour du mois ?</div>`+days('loyerJour')})+hint()+ok('loyer') }
+  else if(key==='abos'){ col=WZC.abos; const has=n=>wz.abos.findIndex(a=>String(a.nom).trim().toLowerCase()===n.toLowerCase());
+    body=card({ico:'play',col,title:'Abonnements',sub:'Touche ceux que tu paies chaque mois',body:`<div class="wztiles">${ABO_TILES.map(([n,p,c],i)=>`<button class="wztile${has(n)>=0?' on':''}" data-act="wz-abo" data-i="${i}" aria-pressed="${has(n)>=0}"><b style="--t:${COLORS[i%COLORS.length]}">${esc(n[0])}</b>${esc(n)}<small class="num">${eur(p)}</small></button>`).join('')}</div>
+      ${wz.abos.length?`<div class="wzsubq">Ajuste les montants</div>${wz.abos.map((a,i)=>`<div class="editrow"><label for="wa-n-${i}" hidden>Nom</label><input type="text" id="wa-n-${i}" data-wz="nom" data-arr="abos" data-i="${i}" value="${esc(a.nom)}" placeholder="Nom"><label for="wa-m-${i}" hidden>Montant</label><input class="amount" id="wa-m-${i}" data-wz="montant" data-arr="abos" data-i="${i}" inputmode="decimal" value="${esc(a.montant)}" placeholder="0 €"><button class="iconbtn" data-act="wz-del" data-arr="abos" data-i="${i}" aria-label="Retirer ${esc(a.nom)}">✕</button></div>`).join('')}`:''}
+      <button class="chip" data-act="wz-addabo" style="align-self:flex-start">+ Autre abonnement</button>
+      ${wz.autres.length?`<div class="wzsubq">Autres charges fixes</div>${wz.autres.map((a,i)=>`<div class="editrow"><label for="wx-n-${i}" hidden>Nom</label><input type="text" id="wx-n-${i}" data-wz="nom" data-arr="autres" data-i="${i}" value="${esc(a.nom)}"><label for="wx-m-${i}" hidden>Montant</label><input class="amount" id="wx-m-${i}" data-wz="montant" data-arr="autres" data-i="${i}" inputmode="decimal" value="${esc(a.montant)}" placeholder="0 €"><button class="iconbtn" data-act="wz-del" data-arr="autres" data-i="${i}" aria-label="Retirer ${esc(a.nom)}">✕</button></div>`).join('')}`:''}`})+hint('Prix indicatifs : ajuste-les à ce que tu paies vraiment')+`<button class="btn wzok" data-act="wz-next">Continuer</button>` }
+  else if(key==='transport'){ col=WZC.transport; body=card({ico:'car',col,title:'Transport',sub:'Budget par mois : essence, Navigo, péage, assurance auto…',body:big('transport','wz-tr','Budget transport par mois')})+hint()+ok('transport') }
+  else if(key==='courses'){ col=WZC.courses; const wk=wz.coursesFreq==='semaine';
+    body=card({ico:'cart',col,title:'Courses',sub:wk?'Budget par semaine':'Budget par mois',body:`<div class="wzseg" role="group" aria-label="Fréquence"><button class="${wk?'':'on'}" data-act="wz-freq" data-v="mois" aria-pressed="${!wk}">Par mois</button><button class="${wk?'on':''}" data-act="wz-freq" data-v="semaine" aria-pressed="${wk}">Par semaine</button></div>`+big('courses','wz-co',wk?'Courses par semaine':'Courses par mois')+(wk?`<div class="wzhint" data-live="comois">Soit environ <strong class="num">${eur(wzCourses())}</strong> par mois</div>`:'')})+hint()+ok('courses') }
+  else if(key==='dette'){ col=WZC.papa; body=card({ico:'swap',col,title:'Remboursement',sub:'Un prêt, une dette envers un proche… par mois',body:big('dette','wz-de','Remboursement par mois')})+hint('Rien à rembourser ? Touche Passer')+ok('dette') }
+  else if(key==='plaisir'){ col=WZC.plaisir; body=card({ico:'party',col,title:'Plaisir',sub:'Sorties, restos, shopping, couple… par mois',body:big('plaisir','wz-pl','Budget plaisir par mois')+(sg.pl?`<button class="wzsug" data-act="wz-sugg" data-k="plaisir" data-v="${sg.pl}">Je te propose <strong class="num">${eur(sg.pl)}</strong> · environ 30 % de tes revenus</button>`:'')})+hint()+ok('plaisir') }
+  else if(key==='epargne'){ col=WZC.epargne; const p=t.rev>0?Math.round(wzN(wz.epargne)/t.rev*100):0;
+    body=card({ico:'piggy',col,title:'Épargne',sub:'Ce que tu mets de côté chaque mois',body:big('epargne','wz-ep','Épargne par mois')+`<div class="wzhint" data-live="eppct">${t.rev>0&&wzN(wz.epargne)>0?`Soit <strong class="num">${p} %</strong> de tes revenus`:'Repère : au moins 20 % de tes revenus'}</div>`+(sg.ep?`<button class="wzsug" data-act="wz-sugg" data-k="epargne" data-v="${sg.ep}">Je te propose <strong class="num">${eur(sg.ep)}</strong></button>`:'')+`<div class="q"><label for="wz-se">Matelas de sécurité à atteindre (€)</label><input class="amount" id="wz-se" data-wz="seuil" inputmode="decimal" value="${esc(wz.seuil)}" placeholder="${sg.seuil}"><span class="muted" style="font-size:13px">Environ 3 mois de dépenses, sur des livrets disponibles à tout moment.</span></div>`})+ok('epargne') }
+  else if(key==='comptes') body=card({ico:'bank',col,title:'Tes comptes',sub:'Chaque banque et chaque livret, avec son solde actuel',pass:false,body:`
+    <div class="chips">${ACC_PRESETS.map(([n,tp,pr],i)=>pr&&!wzIndep()?'':`<button class="chip" data-act="wz-addacc" data-i="${i}">+ ${esc(n)}</button>`).join('')}<button class="chip" data-act="wz-addacc" data-i="-1">+ Autre</button></div>
     ${wz.comptes.map((c,i)=>`<div class="editrow"><label for="wc-n-${i}" hidden>Nom</label><input type="text" id="wc-n-${i}" data-wz="nom" data-arr="comptes" data-i="${i}" value="${esc(c.nom)}"><label for="wc-t-${i}" hidden>Type</label><select id="wc-t-${i}" data-wz="type" data-arr="comptes" data-i="${i}"><option value="courant" ${c.type==='courant'?'selected':''}>Compte courant</option><option value="epargne" ${c.type!=='courant'?'selected':''}>Épargne / placement</option></select>${wzIndep()&&c.type==='courant'?`<label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="wc-p-${i}" data-wz="pro" data-arr="comptes" data-i="${i}" style="min-height:0;width:18px;height:18px;accent-color:var(--accent)" ${c.pro?'checked':''}>Pro</label>`:''}<label for="wc-m-${i}" hidden>Solde</label><input class="amount" id="wc-m-${i}" data-wz="montant" data-arr="comptes" data-i="${i}" inputmode="decimal" value="${esc(c.montant||'')}" placeholder="Solde €"><button class="iconbtn" data-act="wz-del" data-arr="comptes" data-i="${i}" aria-label="Retirer ${esc(c.nom)}">✕</button></div>`).join('')}
-    <span class="muted" style="font-size:13px">« Compte courant » : ses dépenses comptent dans ton budget. « Épargne » : livrets et placements, suivis à part.${wzIndep()?' Coche « Pro » sur le compte de ton activité : ses opérations sont suivies dans l’onglet Pro, pas dans ton budget perso.':''}</span>
-    ${nav()}`;
-  if(st===4) body=`<div class="eyebrow">4 · Ton budget</div><h2>Combien pour te faire plaisir, combien de côté ?</h2>
-    <div class="sum"><span>Revenus</span><strong class="num">${eur(t.rev)}</strong><span>Charges fixes</span><strong class="num">− ${eur(t.fix)}</strong><span>Disponible</span><strong class="num">${eur(t.reste)}</strong></div>
-    <p class="lead">Repère simple : environ 30 % de tes revenus pour le plaisir (sorties, shopping, couple…) et au moins 20 % mis de côté. Je te propose ${eur(sg.pl)} et ${eur(sg.ep)}.</p>
-    <div class="q"><label for="wz-pl">Budget plaisir par mois (€)</label><input class="amount" style="width:160px" id="wz-pl" data-wz="plaisir" inputmode="decimal" value="${esc(wz.plaisir)}" placeholder="${sg.pl}"></div>
-    <div class="q"><label for="wz-ep">Épargne visée par mois (€)</label><input class="amount" style="width:160px" id="wz-ep" data-wz="epargne" inputmode="decimal" value="${esc(wz.epargne)}" placeholder="${sg.ep}"></div>
-    <div class="q"><label for="wz-se">Matelas de sécurité à atteindre (€)</label><input class="amount" style="width:160px" id="wz-se" data-wz="seuil" inputmode="decimal" value="${esc(wz.seuil)}" placeholder="${sg.seuil}"><span class="muted" style="font-size:13px">Environ 3 mois de dépenses, sur des livrets disponibles à tout moment.</span></div>
-    ${(()=>{const pl=wz.plaisir===''?sg.pl:wzN(wz.plaisir), ep=wz.epargne===''?sg.ep:wzN(wz.epargne), r=t.reste-pl-ep; return `<div class="sum"><span>Reste pour les courses et imprévus</span><strong class="num" data-live="r4">${eur(r)}</strong></div><div class="bad" style="font-size:14px" data-live="r4warn" ${r<0?'':'hidden'}>Ton plan dépasse tes revenus : baisse le plaisir ou l’épargne.</div>`})()}
-    ${nav()}`;
-  if(st===5) body=`<div class="eyebrow">5 · Tes objectifs</div><h2>Qu'est-ce que tu veux avoir atteint ?</h2>
-    <p class="lead">Un objectif par horizon, avec un montant. Laisse vide si tu n'en as pas.${wzIndep()?' Pour ton activité, choisis « Chiffre d’affaires » : il sera suivi automatiquement avec tes encaissements.':''}</p>
-    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="card" style="background:var(--sunk);padding:16px;gap:8px"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €">${wzIndep()?`<label for="wo-t-${i}" hidden>Type</label><select id="wo-t-${i}" data-wz="type" data-arr="obj" data-i="${i}"><option value="epargne" ${o.type!=='ca'&&o.type!=='benef'?'selected':''}>Épargne</option><option value="benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option><option value="ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires total</option></select>`:''}</div>${o.type==='benef'&&wzN(o.cible)>0?`<span class="muted" style="font-size:13px">Soit <strong class="num">${eur(wzN(o.cible))}</strong> de bénéfice chaque mois, après achats, frais et cotisations.</span>`:per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> ${o.type==='ca'?'de chiffre d’affaires à faire':'à mettre de côté'} par mois.</span>`:''}</div>`}).join('')}
-    ${nav('wz-finish','Terminer')}`;
-  if(st===6) body=`<div class="eyebrow">C'est prêt</div><h2>Ton cockpit est réglé${wz.nom?', '+esc(wz.nom.split(' ')[0]):''}</h2>
-    <p class="lead">Dernière étape, la plus utile : importe le relevé de ta banque. En quelques secondes, tu verras où part vraiment ton argent, catégorie par catégorie.</p>
-    <div class="sum"><span>Comment faire</span><span></span><span class="muted" style="grid-column:1/-1;font-size:14px">Dans l'appli de ta banque, cherche « Exporter mes opérations » ou « Télécharger le relevé » au format CSV, puis dépose le fichier dans l'onglet Relevé.</span></div>
-    <div class="nav"><button class="btn ghost" data-act="wz-dash">Voir mon tableau de bord</button><button class="btn" data-act="wz-import">Importer mon premier relevé</button></div>`;
-  return `<section class="card wz" aria-label="Questionnaire d'accueil">${dots}${body}</section>`;
+    <span class="muted" style="font-size:13px">« Compte courant » : ses dépenses comptent dans ton budget. « Épargne » : livrets et placements, suivis à part.${wzIndep()?' Coche « Pro » sur le compte de ton activité : ses opérations sont suivies dans l’onglet Pro.':''}</span>`})+`<button class="btn wzok" data-act="wz-next">Continuer</button>`;
+  else if(key==='obj') body=card({ico:'target',col,title:'Tes objectifs',sub:'Un par horizon, avec un montant. Laisse vide si tu n’en as pas.',pass:false,body:`
+    ${wz.obj.map((o,i)=>{const lbl=o.h===12?'Dans 1 an':'Dans '+o.h+' mois'; const per=wzN(o.cible)>0?Math.ceil(wzN(o.cible)/o.h):0; return `<div class="wzobj"><strong>${lbl}</strong><div class="editrow"><label for="wo-n-${i}" hidden>Objectif</label><input type="text" id="wo-n-${i}" data-wz="nom" data-arr="obj" data-i="${i}" value="${esc(o.nom)}" placeholder="${['Ex. 1 000 € de matelas','Ex. Week-end à Lisbonne','Ex. Permis de conduire'][i]}"><label for="wo-c-${i}" hidden>Montant</label><input class="amount" id="wo-c-${i}" data-wz="cible" data-arr="obj" data-i="${i}" inputmode="decimal" value="${esc(o.cible)}" placeholder="Montant €">${wzIndep()?`<label for="wo-t-${i}" hidden>Type</label><select id="wo-t-${i}" data-wz="type" data-arr="obj" data-i="${i}"><option value="epargne" ${o.type!=='ca'&&o.type!=='benef'?'selected':''}>Épargne</option><option value="benef" ${o.type==='benef'?'selected':''}>Bénéfice par mois</option><option value="ca" ${o.type==='ca'?'selected':''}>Chiffre d'affaires total</option></select>`:''}</div>${o.type==='benef'&&wzN(o.cible)>0?`<span class="muted" style="font-size:13px">Soit <strong class="num">${eur(wzN(o.cible))}</strong> de bénéfice chaque mois, après achats, frais et cotisations.</span>`:per?`<span class="muted" style="font-size:13px">Soit environ <strong class="num">${eur(per)}</strong> ${o.type==='ca'?'de chiffre d’affaires à faire':'à mettre de côté'} par mois.</span>`:''}</div>`}).join('')}`})+`<button class="btn wzok" data-act="wz-finish">Terminer</button>`;
+  else if(key==='done'){ const c=cfg||{}, rev=+c.revenus||0, fx=(c.fixes||[]).reduce((a,f)=>a+(+f.montant||0),0), pl=+c.plaisirBudget||0, ep=+(c.budgets||{}).epargne||0, p=rev>0?Math.round(ep/rev*100):0, rest=rev-fx-pl-ep;
+    const msg=!rev?'Ajoute ton revenu dans Réglages pour voir ton taux d’épargne.':p>=20?'20 % ou plus mis de côté : c’est le niveau qui fait vraiment avancer.':p>=10?'Bon début. Le cap à viser, c’est 20 %.':'Moins de 10 % : on va chercher de la marge, catégorie par catégorie.';
+    const bar=[['Charges fixes',fx,WZC.logement],['Plaisir',pl,WZC.plaisir],['Épargne',ep,WZC.epargne],['Courses et imprévus',Math.max(0,rest),'var(--line)']].filter(x=>x[1]>0); const tot=Math.max(rev,bar.reduce((a,x)=>a+x[1],0),1);
+    body=`<div class="wzstack${enter}" style="text-align:center"><div class="wzlogo sm">${WZ_LOGO}</div><h2 class="wzq">Bienvenue${wz.nom?', '+esc(wz.nom.trim().split(' ')[0]):''} !</h2><p class="wzhint" style="font-size:15px">Ton cockpit est réglé.</p>
+    <div class="wzbigring done" data-p="${p}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="52"/><circle class="fill" cx="60" cy="60" r="52" stroke="${WZC.epargne}"/></svg><div class="mid"><strong class="num" data-count="${p}">0 %</strong><span>d’épargne</span></div></div>
+    <p style="margin:0;font-weight:500">${msg}</p>
+    ${rev?`<div class="wzbar" aria-hidden="true">${bar.map(x=>`<i style="flex:${x[1]/tot};background:${x[2]}"></i>`).join('')}</div><div class="wzleg">${bar.map(x=>`<span style="--c:${x[2]}"><i></i>${x[0]} <b class="num">${eur(x[1])}</b></span>`).join('')}</div>`:''}
+    <div class="wzc" style="text-align:left"><strong>Dernière étape, la plus utile</strong><span class="muted" style="font-size:14px">Importe le relevé de ta banque : en quelques secondes, tu vois où part vraiment ton argent. Dans l'appli de ta banque, cherche « Exporter mes opérations » au format CSV.</span></div>
+    <button class="btn wzok" data-act="wz-import">Importer mon premier relevé</button><button class="btn ghost" data-act="wz-dash" style="width:100%">Voir mon tableau de bord</button></div>` }
+  const ring=WZ_RING.includes(key)&&t.rev>0?wzRingHtml():'';
+  return `<section class="wz" aria-label="Questionnaire d'accueil" style="--c:${col}">${top}${ring}${body}</section>`;
 }
+function wzGo(d){ wz._dir=d; wz.step=Math.max(0,Math.min(wzFlow().length-1,wz.step+d)) }
 function wzAction(a,t){
-  if(a==='wz-next'){ wz.step=Math.min(WZ_STEPS-1,wz.step+1) }
-  else if(a==='wz-prev'){ wz.step=Math.max(0,wz.step-1) }
-  else if(a==='wz-addfix'){ const p=FIX_PRESETS[+t.dataset.i]; wz.fixes.push({nom:p?p[0]:'',montant:'',cat:p?p[1]:'abos'}); render(); const ins=document.querySelectorAll('[data-arr="fixes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
+  if(a==='wz-next'){ wzGo(1) }
+  else if(a==='wz-prev'){ wzGo(-1) }
+  else if(a==='wz-ok'){ const k=t.dataset.k; if(wz._busy) return; if(k&&wzHas(k)&&!wzRM()){ wz._busy=true; t.classList.add('done'); t.innerHTML=wzSvg('check')+' Super !'; setTimeout(()=>{ if(!wz){return} wz._busy=false; wzGo(1); render(); window.scrollTo({top:0}) },420); return } wzGo(1) }
+  else if(a==='wz-prof'){ wz.profil=t.dataset.v; render(); return }
+  else if(a==='wz-day'||a==='wz-sugg'){ wz[t.dataset.k]=t.dataset.v; render(); return }
+  else if(a==='wz-freq'){ wz.coursesFreq=t.dataset.v; render(); return }
+  else if(a==='wz-abo'){ const p=ABO_TILES[+t.dataset.i]; if(!p) return; const i=wz.abos.findIndex(x=>String(x.nom).trim().toLowerCase()===p[0].toLowerCase()); if(i>=0) wz.abos.splice(i,1); else wz.abos.push({nom:p[0],montant:String(p[1]).replace('.',','),cat:p[2]}); render(); return }
+  else if(a==='wz-addabo'){ wz.abos.push({nom:'',montant:'',cat:'abos'}); render(); const ins=document.querySelectorAll('[data-arr="abos"][data-wz="nom"]'); if(ins.length) ins[ins.length-1].focus(); return }
   else if(a==='wz-addacc'){ const p=ACC_PRESETS[+t.dataset.i]; wz.comptes.push({id:uid(),nom:p?p[0]:'',type:p?p[1]:'courant',pro:!!(p&&p[2]),montant:'',dispo:p?isLivret(p[0]):false}); render(); const ins=document.querySelectorAll('[data-arr="comptes"][data-wz="'+(p?'montant':'nom')+'"]'); if(ins.length) ins[ins.length-1].focus(); return }
-  else if(a==='wz-del'){ wz[t.dataset.arr].splice(+t.dataset.i,1) }
+  else if(a==='wz-del'){ wz[t.dataset.arr].splice(+t.dataset.i,1); render(); return }
   else if(a==='wz-skip'){ if(!cfg) cfg=defaultCfg(); cfg.onboardSkipped=true; delete cfg.resetWizard; saveCfg(); wz=null; forceWizard=false; tab='dash' }
   else if(a==='wz-cancel'){ wz=null; forceWizard=false }
-  else if(a==='wz-finish'){ wzFinish(); wz.step=WZ_STEPS-1 }
+  else if(a==='wz-finish'){ wzFinish(); wz._dir=1; wz.step=wzFlow().length-1 }
   else if(a==='wz-import'){ wz=null; forceWizard=false; tab='rel' }
   else if(a==='wz-dash'){ wz=null; forceWizard=false; tab='dash' }
   render(); window.scrollTo({top:0});
 }
 function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg();
   cfg.nomTitulaire=wz.nom.trim(); cfg.revenus=t.rev; cfg.profil=wz.profil; if(wzIndep()){ cfg.micro={...(cfg.micro||{}),activite:wz.activite,decl:wz.decl,vl:!!wz.vl,caMoyen:wzN(wz.caMoyen),achatsMoyens:wzN(wz.achats)}; if(cfg.micro.taux!=null&&MICRO[wz.activite]&&cfg.micro.activite!==wz.activite) delete cfg.micro.taux } if(wz.profil==='mixte') cfg.salaireFixe=wzN(wz.salaire); const j=Math.round(wzN(wz.jour)); if(j>=1&&j<=31) cfg.jourPaie=j;
-  cfg.fixes=wz.fixes.filter(f=>f.nom||wzN(f.montant)).map(f=>({nom:f.nom||'Charge',montant:wzN(f.montant),cat:f.cat}));
+  cfg.fixes=wzFixList();
   const b={...(cfg.budgets||{})}; FIX_CATS.forEach(([id])=>{ delete b[id] }); cfg.fixes.forEach(f=>{ b[f.cat]=(b[f.cat]||0)+f.montant });
   b.epargne=wz.epargne===''?sg.ep:wzN(wz.epargne); cfg.budgets=b;
   cfg.plaisirBudget=wz.plaisir===''?sg.pl:wzN(wz.plaisir); cfg.seuilSecurite=wz.seuil===''?sg.seuil:wzN(wz.seuil);
@@ -911,9 +1046,12 @@ function wzFinish(){ const t=wzTotals(), sg=wzSuggest(); if(!cfg) cfg=defaultCfg
   cfg.onboarded=true; cfg.onboardSkipped=false; delete cfg.resetWizard; accChecked=true; saveCfg(); forceWizard=true;
 }
 
-function wzLive(){ if(!wz) return; const t=wzTotals(), sg=wzSuggest(); const set=(k,v,bad)=>{const el=document.querySelector('[data-live="'+k+'"]'); if(el){el.textContent=v; if(bad!==undefined) el.classList.toggle('bad',bad)}};
-  set('rev',eur(t.rev)); set('fix',eur(t.fix)); set('reste',eur(t.reste),t.reste<0);
-  const pl=wz.plaisir===''?sg.pl:wzN(wz.plaisir), ep=wz.epargne===''?sg.ep:wzN(wz.epargne), r=t.reste-pl-ep; set('r4',eur(r),r<0); const w=document.querySelector('[data-live="r4warn"]'); if(w) w.hidden=!(r<0) }
+function wzLive(){ if(!wz) return; document.querySelectorAll('.wzamt').forEach(i=>{ i.style.width=(Math.max(1,(i.value||'0').length)+.6)+'ch' });
+  document.querySelectorAll('[data-act="wz-ok"][data-k]').forEach(b=>{ if(b.classList.contains('done')) return; const h=wzHas(b.dataset.k); b.classList.toggle('later',!h); b.textContent=h?b.dataset.lbl:'Plus tard →' });
+  const br=document.querySelector('.wzbigring.inp'); if(br) br.classList.toggle('on',wzHas(br.dataset.k));
+  const t=wzTotals(), ep=document.querySelector('[data-live="eppct"]'); if(ep) ep.innerHTML=t.rev>0&&wzN(wz.epargne)>0?`Soit <strong class="num">${Math.round(wzN(wz.epargne)/t.rev*100)} %</strong> de tes revenus`:'Repère : au moins 20 % de tes revenus';
+  const cm=document.querySelector('[data-live="comois"]'); if(cm) cm.innerHTML=`Soit environ <strong class="num">${eur(wzCourses())}</strong> par mois`;
+  wzRing() }
 
 /* ---------- rendering ---------- */
 function render(){ now=new Date();
@@ -928,7 +1066,7 @@ function render(){ now=new Date();
   const showWz=needsWizard();
   document.querySelector('.tabs').hidden=showWz; document.querySelector('.monthpick').hidden=showWz; document.getElementById('sub').style.visibility=showWz?'hidden':''; document.getElementById('askopen').hidden=showWz;
   const active=document.activeElement&&document.activeElement.id;
-  if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
+  if(showWz){ if(!wz) wz=initWz(); $app.innerHTML=viewWizard(); wzAfter(); if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()} return }
   if(!cfg){ cfg=defaultCfg(); }
   ensureAccounts(); revMigrate(); objMigrate(); objMigrate2(); parisMigrate(); syncBalances();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
@@ -1237,6 +1375,7 @@ document.addEventListener('change',e=>{
   else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else if(k==='compteId'&&t.value==='__benef'){o.type='benef';o.compteId=''}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('wzamt')){ e.preventDefault(); const b=document.querySelector('.wz .wzok'); if(b) b.click() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
 document.addEventListener('submit',e=>{
   if(e.target.id!=='addform') return; e.preventDefault();
