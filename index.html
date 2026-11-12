@@ -885,9 +885,9 @@ function detectAbos(){ const groups={}; let ref='';
       if(prev){ s.rise=s.unit>prev.unit+0.5?prev.unit:null; s.drop=s.unit<prev.unit-0.5?prev.unit:null; s.first=prev.first; s.n+=prev.n; prev.merged=true } });
     subs.filter(s=>!s.merged).forEach(s=>out.push(s)) });
   const res=out.sort((a,b)=>(b.active-a.active)||(b.montant-a.montant)); res.probables=probs.filter(p=>!out.some(o=>o.k===p.k&&o.active)).sort((a,b)=>b.montant-a.montant); return res }
-function viewAbos(){ const list=detectAbos(), probs=(list.probables||[]), AM=cfg.aboAmounts||{}; const man=(cfg.aboManual||[]);
+function viewAbos(){ const list=detectAbos(), AM=cfg.aboAmounts||{}; const man0=(cfg.aboManual||[]); const probs=(list.probables||[]).filter(p=>!man0.some(m=>m.from===p.cid)); let man=man0;
   [...list,...probs].forEach(a=>{ const v=AM[a.cid]; if(v!=null&&!isNaN(v)){ a.detected=a.montant; a.montant=+v; a.unit=+v; a.over=true } });
-  const act=list.filter(a=>a.active), old=list.filter(a=>!a.active);
+  const act=list.filter(a=>a.active), old=list.filter(a=>!a.active); man=man0.filter(m=>!(m.from&&act.some(a=>a.cid===m.from)));
   const tot=act.reduce((a,x)=>a+x.montant,0)+man.reduce((a,m)=>a+(+m.montant||0),0), nAct=act.length+man.length;
   const amtIn=(a,id)=>`<label for="${id}" hidden>Montant par mois</label><input class="amount" id="${id}" inputmode="decimal" value="${esc(String(Math.round(a.montant*100)/100).replace('.',','))}" data-act="${a.manual?'abomamt':'aboamt'}" data-k="${esc(a.manual?a.id:a.cid)}" style="width:96px;text-align:right" aria-label="Montant par mois de ${esc(a.nom)}"> <span class="muted" style="font-weight:400">€ / mois</span>`;
   const row=a=>`<div class="abo" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--sunk)">
@@ -895,7 +895,7 @@ function viewAbos(){ const list=detectAbos(), probs=(list.probables||[]), AM=cfg
       <span class="muted" style="font-size:13px;padding-left:6px">${a.n} paiement${a.n>1?'s':''} depuis ${esc(shortMonth(a.first.slice(0,7)))} ${a.first.slice(0,4)} · dernier le ${a.last.slice(8,10)}/${a.last.slice(5,7)} · ${esc(a.src)}</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${a.probable?'<span class="pill warn">Probable</span>':a.active?'<span class="pill ok">Actif</span>':'<span class="pill">Plus prélevé depuis 45 jours</span>'}${a.rise?`<span class="pill warn">Hausse : ${eur(a.rise,2)} → ${eur(a.unit,2)}</span>`:''}${a.drop?`<span class="pill ok">Baisse : ${eur(a.drop,2)} → ${eur(a.unit,2)}</span>`:''}</div>
     <div style="text-align:right;min-width:150px"><div class="num" style="font-weight:600">${amtIn(a,'am-'+a.cid.replace(/\W/g,'_'))}</div><div class="muted num" style="font-size:13px">${eur(a.montant*12)} / an${a.over?` · <button class="linkbtn" data-act="aboamtreset" data-k="${esc(a.cid)}" style="padding:0;font-size:13px">détecté : ${eur(a.detected,2)}</button>`:''}</div></div>
-    <button class="linkbtn" data-act="aboignore" data-k="${esc(a.cid)}">Pas un abonnement</button></div>`;
+    ${a.probable?`<button class="btn small" data-act="aboconfirm" data-k="${esc(a.cid)}">C’est un abonnement</button>`:''}<button class="linkbtn" data-act="aboignore" data-k="${esc(a.cid)}">Pas un abonnement</button></div>`;
   const mrow=m=>{ const a={...m,manual:true,montant:+m.montant||0}; return `<div class="abo" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--sunk)">
     <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px"><label class="lbl" for="mn-${m.id}" hidden>Nom de l'abonnement</label><input type="text" id="mn-${m.id}" value="${esc(m.nom)}" data-act="abomname" data-k="${esc(m.id)}" style="font-weight:600;border-color:transparent;background:transparent;padding:4px 6px;min-height:0"><span class="muted" style="font-size:13px;padding-left:6px">Ajouté à la main${m.jour?' · prélevé le '+esc(m.jour):''}</span></div>
     <div style="display:flex;gap:8px"><span class="pill ok">Actif</span></div>
@@ -1379,6 +1379,7 @@ document.addEventListener('click',e=>{
   else if(a==='icsurssaf'){icsUrssaf()}
   else if(a==='livre'){livreDownload()}
   else if(a==='aboignore'){(cfg.aboIgnore=cfg.aboIgnore||[]).push(t.dataset.k);saveCfg();render();toast('Masqué de la liste des abonnements.')}
+  else if(a==='aboconfirm'){ const pr=(detectAbos().probables||[]).find(x=>x.cid===t.dataset.k); if(pr){ const v=(cfg.aboAmounts||{})[pr.cid]; (cfg.aboManual=cfg.aboManual||[]).push({id:uid(),nom:pr.nom,montant:v!=null?+v:Math.round(pr.montant*100)/100,from:pr.cid}); saveCfg(); render(); toast('« '+pr.nom+' » ajouté à tes abonnements.') } }
   else if(a==='aboamtreset'){ delete (cfg.aboAmounts||{})[t.dataset.k]; saveCfg(); render() }
   else if(a==='abomdel'){ cfg.aboManual=(cfg.aboManual||[]).filter(x=>x.id!==t.dataset.k); saveCfg(); render(); toast('Abonnement supprimé.') }
   else if(a==='aboreset'){cfg.aboIgnore=[];saveCfg();render()}
