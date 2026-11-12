@@ -1403,12 +1403,12 @@ document.addEventListener('change',e=>{
   if(a==='vir'){const m=getMonth(cur);m.virs[+t.dataset.i]=t.checked;saveMonth(cur);render()}
   else if(a==='acc'){const c=cfg.comptes.find(x=>x.id===t.dataset.id);if(c){setSolde(c,num(t.value));saveCfg();render()}}
   else if(a==='cat'){const f=findOp(t.dataset.id);const o=f&&f.o;if(o){const v=t.value, oldCat=o.cat, fk=fullKey(o.libelle), pos=o.montant>0; o.cat=v; const touched=new Set([f.k]); let n=0; pendingProp=null;
-    if(fk&&isTransferLib(o.libelle)){ const others=[]; Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat===oldCat&&oldCat!==v) others.push(x.id) }));
+    if(fk&&(isTransferLib(o.libelle)||oldCat!=='autre')){ const others=[]; Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat===oldCat&&oldCat!==v) others.push(x.id) }));
       if(cfg.regles&&cfg.regles['f:'+fk]){ delete cfg.regles['f:'+fk]; saveCfg() }
       if(others.length) pendingProp={fk,pos,v,ids:others,label:o.libelle,old:oldCat};
       saveMonth(f.k); render(); return }
     if(fk){ (cfg.regles=cfg.regles||{})['f:'+fk]=v; const old=ruleKey(o.libelle); if(old&&cfg.regles[old]&&cfg.regles[old]!==v) delete cfg.regles[old];
-      Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat!==v){ x.cat=v; n++; touched.add(k) } })); saveCfg() }
+      Object.keys(months).forEach(k=>(months[k].ops||[]).forEach(x=>{ if(x!==o&&(x.montant>0)===pos&&fullKey(x.libelle)===fk&&x.cat==='autre'&&x.cat!==v){ x.cat=v; n++; touched.add(k) } })); saveCfg() }
     touched.forEach(saveMonth); if(n) toast(`${n+1} opérations « ${o.libelle.slice(0,40)} » classées en ${CAT[v]?CAT[v].nom:v}.`); render()}}
   else if(a==='note'){const m=getMonth(cur);m.note=t.value;saveMonth(cur)}
   else if(a==='cfg'){cfg[t.dataset.k]=num(t.value);saveCfg();render()}
