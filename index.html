@@ -603,6 +603,7 @@ function fullKey(l){ return deacc(l).split(/[^a-z0-9]+/).filter(w=>w&&!/[0-9]/.t
 function ruleKey(l){return String(l||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,' ').replace(/\b(cb|carte|prlv|prelevement|vir|virement|sepa|paiement|achat|fact|du|de|le|la)\b/g,' ').trim().split(/\s+/).slice(0,2).join(' ')}
 function autoInterne(l,a,src,type){ const s=String(l||''), low=deacc(s), acc=((cfg&&cfg.comptes)||[]).find(c=>c.id===src);
   const neo=/revolut|lydia|n26|wise|nickel/i.test((acc&&acc.nom)||src||'');
+  if(/recharge(ment)? (sur|de|par|via)\b.*(apple|google|samsung) ?pay|recharge.*\*\d{4}/i.test(s)) return true;
   if((neo||type)&&(/top.?up|recharge/i.test(type||'')||/top.?up|rechargement|pocket|poche|coffre|vault/i.test(s))) return true;
   for(const c of courants()){ if(c.id===src) continue; const n=deacc(c.nom).trim(); if(n.length>=4&&!/compte|principal|banque|courant/.test(n)&&low.includes(n)) return true }
   if(/revolut/i.test(s)&&!neo) return true;
