@@ -151,6 +151,19 @@ td.r,th.r{text-align:right}
 .editrow input[type=text]{flex:1 1 140px;min-width:0}
 .locked{background:var(--ok-bg);color:var(--accent);padding:10px 14px;border-radius:12px;font-weight:600}
 
+.drillrow{cursor:pointer;background:none;border:none;color:inherit;font:inherit;text-align:left;min-height:0}
+button.catline.drillrow{width:100%;padding:6px 8px;margin:0 -8px;border-radius:10px;box-sizing:content-box;max-width:100%}
+button.catline.drillrow:hover,button.catline.drillrow:focus-visible{background:var(--sunk)}
+.drillbg{position:fixed;inset:0;z-index:100;background:rgba(13,15,26,.55);display:flex;align-items:flex-end;justify-content:center}
+.drillbox{background:var(--surface);color:var(--ink);width:100%;max-width:560px;max-height:84vh;display:flex;flex-direction:column;border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.drillbg{align-items:center}.drillbox{border-radius:22px;max-height:80vh}}
+.drillh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
+.drillbody{overflow:auto;display:flex;flex-direction:column;margin:0 -6px;padding:0 6px}
+.drillop{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.drillop .dl{display:flex;flex-direction:column;min-width:0}
+.drillop>.num{white-space:nowrap;flex:none}
+.drillop .dl span:nth-child(2){overflow-wrap:anywhere}
+.drillop .dd{font-weight:600;font-size:13px;color:var(--muted)}
 .wz{max-width:480px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:14px;padding-bottom:20px}
 .wz .q{display:flex;flex-direction:column;gap:6px}
 .wz .q label{font-weight:600}
@@ -643,6 +656,23 @@ const ht=(tag,id,title,cls)=>`<div class="hrow"><${tag} id="${id}" ${cls?`class=
 /* ---------- analyses ---------- */
 let anaN=6;
 const isDepOp=o=>{ const c=CAT[o.cat]; return +o.montant<0&&!isProAcc(srcOf(o))&&c&&c.g!=='interne'&&c.g!=='epargne'&&c.g!=='revenu'&&c.g!=='pro' };
+const DR_TITLES={wd:i=>'Dépenses du '+['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][+i],small:()=>'Petites dépenses (moins de 10 €)',cat:id=>(CAT[id]||{}).nom||id,cmp:id=>((CAT[id]||{}).nom||id)+' · '+monthLabel(cur),mer:id=>aboLabel(id.startsWith('B:')?id:id.split(' ').join(' ')),mon:id=>'Dépenses · '+monthLabel(id)};
+const merKey=l=>{ const k=aboKey(l)||'?'; return k.startsWith('B:')?k:k.split(' ').sort().join(' ') };
+function drillList(t,id){ const keys=Array.from({length:anaN},(_,i)=>addMonths(cur,i-anaN+1)), wd=keys.filter(k=>months[k]&&(months[k].ops||[]).length);
+  let ops=(t==='cmp'?[cur]:t==='mon'?[id]:wd).flatMap(k=>((months[k]||{}).ops||[]).filter(isDepOp));
+  if(t==='wd') ops=ops.filter(o=>((new Date(realDate(o)+'T12:00:00').getDay()+6)%7)===+id);
+  else if(t==='small') ops=ops.filter(o=>-o.montant<10);
+  else if(t==='cat'||t==='cmp') ops=ops.filter(o=>o.cat===id);
+  else if(t==='mer') ops=ops.filter(o=>merKey(o.libelle)===id);
+  return ops.sort((a,b)=>realDate(b).localeCompare(realDate(a))||a.libelle.localeCompare(b.libelle)) }
+function openDrill(t,id){ closeDrill(); const ops=drillList(t,id), tot=ops.reduce((a,o)=>a-o.montant,0); const prev=document.activeElement;
+  const per=t==='cmp'||t==='mon'?'':` · ${anaN} derniers mois`;
+  const el=document.createElement('div'); el.id='drill'; el.className='drillbg'; el._prev=prev;
+  el.innerHTML=`<div class="drillbox" role="dialog" aria-modal="true" aria-labelledby="drill-t"><div class="drillh"><div><h2 id="drill-t" style="margin:0;font-size:18px">${esc(DR_TITLES[t](id))}</h2><span class="muted" style="font-size:13px">${ops.length} opération${ops.length>1?'s':''} · <b class="num">${eur(tot)}</b>${per}</span></div><button class="iconbtn" data-act="drillx" aria-label="Fermer">✕</button></div>
+  <div class="drillbody">${ops.length?ops.map(o=>{ const rd=realDate(o); return `<div class="drillop"><div class="dl"><span class="dd num">${esc(fmtD(new Date(rd+'T12:00:00')))}</span><span>${esc(o.libelle)}</span><small class="muted">${esc((CAT[o.cat]||{}).nom||'')}${rd!==o.date?' · enregistré le '+esc(fmtD(new Date(o.date+'T12:00:00'))):''}</small></div><span class="num">${eur(-o.montant,2)}</span></div>` }).join(''):'<div class="empty">Aucune dépense.</div>'}</div>
+  ${t==='cat'||t==='cmp'?`<button class="btn ghost small" data-act="relcat" data-cat="${id}" data-scope="annee" data-goto="1" style="margin-top:10px">Corriger ces opérations dans Relevé</button>`:''}</div>`;
+  document.body.appendChild(el); document.body.style.overflow='hidden'; const x=el.querySelector('[data-act="drillx"]'); if(x) x.focus() }
+function closeDrill(){ const el=document.getElementById('drill'); if(!el) return; const pv=el._prev; el.remove(); document.body.style.overflow=''; if(pv&&pv.focus&&document.contains(pv)) pv.focus() }
 function viewAna(){
   const keys=Array.from({length:anaN},(_,i)=>addMonths(cur,i-anaN+1)), withData=keys.filter(k=>months[k]&&(months[k].ops||[]).length);
   if(!withData.length) return `<section class="card"><h2>Analyses</h2><div class="empty">Importe au moins un relevé pour voir tes analyses.</div></section>`;
@@ -657,7 +687,7 @@ function viewAna(){
   // current vs average
   const sc=stats(cur), prevK=withData.filter(k=>k!==cur), cmp=CATS.filter(c=>c.g!=='interne'&&c.g!=='revenu'&&c.g!=='pro'&&c.g!=='epargne').map(c=>{ const now=sc.by[c.id]||0, moy=prevK.length?prevK.reduce((a,k)=>a+(stats(k).by[c.id]||0),0)/prevK.length:0; return {c,now,moy,d:now-moy} }).filter(x=>x.now>0||x.moy>0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,8);
   // merchants
-  const byM={}; ops.forEach(o=>{ const k=aboKey(o.libelle)||'?'; const m=byM[k]||(byM[k]={k,nom:aboLabel(k),t:0,n:0}); m.t-=o.montant; m.n++ });
+  const byM={}; ops.forEach(o=>{ const k=merKey(o.libelle); const m=byM[k]||(byM[k]={k,nom:aboLabel(aboKey(o.libelle)||'?'),t:0,n:0}); m.t-=o.montant; m.n++ });
   const top=Object.values(byM).sort((a,b)=>b.t-a.t).slice(0,10);
   // weekdays
   const wd=[0,0,0,0,0,0,0], JOURS=['lun.','mar.','mer.','jeu.','ven.','sam.','dim.']; ops.forEach(o=>{ const d=new Date(realDate(o)+'T12:00:00').getDay(); wd[(d+6)%7]-=o.montant }); const wmx=Math.max(1,...wd);
@@ -682,18 +712,18 @@ function viewAna(){
     <div class="kpi">${ht('div','i-tx','Taux d’épargne moyen','muted')}${ip('i-tx','Épargne moyenne divisée par revenus moyens. Repère : 20 % c’est bien, 30 % c’est excellent.')}<div class="big ${aTaux>=0.2?'good':'bad'}">${Math.round(aTaux*100)} %</div></div>
   </section>
   <div class="row">
-  <section class="card grow">${ht('h2','i-evo','Évolution mois par mois')}${ip('i-evo','Pour chaque mois : revenus (gris), dépenses perso (orange) et épargne nette (vert). Survole une barre pour voir les montants.')}
+  <section class="card grow">${ht('h2','i-evo','Évolution mois par mois')}${ip('i-evo','Pour chaque mois : revenus (gris), dépenses perso (orange) et épargne nette (vert). Touche un mois pour voir ses dépenses, une par une.')}
     <div class="legend"><span><i style="background:var(--muted)"></i>Revenus</span><span><i style="background:var(--warn)"></i>Dépenses</span><span><i style="background:var(--accent)"></i>Épargne</span></div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.max(3,cper.length)},minmax(0,1fr));gap:6px;align-items:end;height:180px">${cper.map(p=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${esc(monthLabel(p.k))} : revenus ${eur(p.revenus)}, dépenses ${eur(p.dep)}, épargne ${eur(p.epargne)}"><div style="display:flex;gap:2px;align-items:flex-end;height:140px;width:100%;justify-content:center"><span style="width:28%;height:${pct(p.revenus/mx*100)}%;background:var(--muted);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(p.dep/mx*100)}%;background:var(--warn);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(Math.max(0,p.epargne)/mx*100)}%;background:var(--accent);border-radius:3px 3px 0 0"></span></div><span class="muted num" style="font-size:11px">${esc(shortMonth(p.k))}</span></div>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(3,cper.length)},minmax(0,1fr));gap:6px;align-items:end;height:180px">${cper.map(p=>`<button class="drillrow" data-act="drill" data-t="mon" data-id="${p.k}" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;padding:0" title="${esc(monthLabel(p.k))} : revenus ${eur(p.revenus)}, dépenses ${eur(p.dep)}, épargne ${eur(p.epargne)}"><div style="display:flex;gap:2px;align-items:flex-end;height:140px;width:100%;justify-content:center"><span style="width:28%;height:${pct(p.revenus/mx*100)}%;background:var(--muted);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(p.dep/mx*100)}%;background:var(--warn);border-radius:3px 3px 0 0"></span><span style="width:28%;height:${pct(Math.max(0,p.epargne)/mx*100)}%;background:var(--accent);border-radius:3px 3px 0 0"></span></div><span class="muted num" style="font-size:11px">${esc(shortMonth(p.k))}</span></button>`).join('')}</div>
   </section>
   <section class="card side">${ht('h2','i-cat','Où part ton argent')}${ip('i-cat','Répartition de toutes tes dépenses perso de la période par catégorie, en part du total, avec la moyenne par mois.')}
     <div class="split" role="img" aria-label="Répartition des dépenses">${cats.slice(0,6).map(([c,v],i)=>`<span style="width:${v/totDep*100}%;background:${COL[i%COL.length]}" title="${esc(CAT[c].nom)}"></span>`).join('')}</div>
-    ${cats.slice(0,8).map(([c,v],i)=>`<div class="catline"><div class="head"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${COL[i%COL.length]}"></span><button class="linkbtn" data-act="relcat" data-cat="${c}" data-scope="annee" data-goto="1" title="Voir les opérations">${esc(CAT[c].nom)}</button></span><span class="num">${Math.round(v/totDep*100)} % · ${eur(v/n)}/mois</span></div></div>`).join('')}
+    ${cats.slice(0,8).map(([c,v],i)=>`<div class="catline"><div class="head"><span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:${COL[i%COL.length]}"></span><button class="linkbtn" data-act="relcat" data-cat="${c}" data-scope="annee" data-goto="1" title="Voir les opérations">${esc(CAT[c].nom)}</button></span><button class="drillrow num" data-act="drill" data-t="cat" data-id="${c}" style="padding:0">${Math.round(v/totDep*100)} % · ${eur(v/n)}/mois ›</button></div></div>`).join('')}
   </section>
   </div>
   <div class="row">
   <section class="card grow">${ht('h2','i-cmp',esc(monthLabel(cur))+' face à ta moyenne')}${ip('i-cmp','Pour chaque catégorie : ce que tu as dépensé ce mois-ci, comparé à ta moyenne des autres mois de la période. Les plus gros écarts sont en haut. Orange = tu dépenses plus que d’habitude.')}
-    ${cmp.length?`<div class="tablebox"><table><thead><tr><th>Catégorie</th><th class="r">Ce mois</th><th class="r">Moyenne</th><th class="r">Écart</th></tr></thead><tbody>${cmp.map(x=>`<tr><td>${esc(x.c.nom)}</td><td class="r num">${eur(x.now)}</td><td class="r num">${eur(x.moy)}</td><td class="r"><span class="pill ${x.d>5?'warn':x.d<-5?'ok':''}">${x.d>=0?'+':''}${eur(x.d)}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Pas assez de données.</div>'}
+    ${cmp.length?`<div class="tablebox"><table><thead><tr><th>Catégorie</th><th class="r">Ce mois</th><th class="r">Moyenne</th><th class="r">Écart</th></tr></thead><tbody>${cmp.map(x=>`<tr><td><button class="linkbtn drillrow" data-act="drill" data-t="cmp" data-id="${x.c.id}" style="padding:2px 0">${esc(x.c.nom)}</button></td><td class="r num">${eur(x.now)}</td><td class="r num">${eur(x.moy)}</td><td class="r"><span class="pill ${x.d>5?'warn':x.d<-5?'ok':''}">${x.d>=0?'+':''}${eur(x.d)}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Pas assez de données.</div>'}
   </section>
   <section class="card side">${ht('h2','i-proj','Projection fin de mois')}${ip('i-proj','Ton budget plaisir dépensé jusqu’ici, divisé par le nombre de jours écoulés, multiplié par le nombre de jours du mois. Si tu continues au même rythme, voilà où tu finiras.')}
     <div class="big num ${proj>pb&&pb?"bad":""}" style="font-size:28px;font-weight:600">${eur(proj)}</div>
@@ -705,12 +735,12 @@ function viewAna(){
   </div>
   <div class="row">
   <section class="card grow">${ht('h2','i-top','Tes 10 plus gros postes')}${ip('i-top','Les commerçants ou services où tu as le plus dépensé sur la période, avec le nombre de paiements et le ticket moyen. Les noms sont déduits du libellé bancaire.')}
-    <div class="tablebox"><table><thead><tr><th>Où</th><th class="r">Total</th><th class="r">Paiements</th><th class="r">Ticket moyen</th></tr></thead><tbody>${top.map(m=>`<tr><td>${esc(m.nom)}</td><td class="r num">${eur(m.t)}</td><td class="r num">${m.n}</td><td class="r num">${eur(m.t/m.n,2)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="tablebox"><table><thead><tr><th>Où</th><th class="r">Total</th><th class="r">Paiements</th><th class="r">Ticket moyen</th></tr></thead><tbody>${top.map(m=>`<tr><td><button class="linkbtn drillrow" data-act="drill" data-t="mer" data-id="${esc(m.k)}" style="padding:2px 0">${esc(m.nom)}</button></td><td class="r num">${eur(m.t)}</td><td class="r num">${m.n}</td><td class="r num">${eur(m.t/m.n,2)}</td></tr>`).join('')}</tbody></table></div>
   </section>
   <section class="card side">${ht('h2','i-wd','Tes jours qui coûtent')}${ip('i-wd','Total de tes dépenses perso de la période selon le jour de la semaine. Utile pour repérer, par exemple, des week-ends qui coûtent cher. Pour les paiements par carte, on prend le jour où tu as vraiment payé (indiqué dans le libellé de ta banque), pas le jour où la banque l’a enregistré.')}
-    ${wd.map((v,i)=>`<div class="catline"><div class="head"><span>${JOURS[i]}</span><span class="num">${eur(v)}</span></div><div class="bar"><span style="width:${v/wmx*100}%"></span></div></div>`).join('')}
+    ${wd.map((v,i)=>`<button class="catline drillrow" data-act="drill" data-t="wd" data-id="${i}" aria-label="Voir les dépenses du ${JOURS[i]}"><div class="head"><span>${JOURS[i]}</span><span class="num">${eur(v)} ›</span></div><div class="bar"><span style="width:${v/wmx*100}%"></span></div></button>`).join('')}
     ${ht('h3','i-small','Petites dépenses (moins de 10 €)','muted')}${ip('i-small','Toutes les dépenses de moins de 10 € de la période : cafés, snacks, petits achats. Une à une elles semblent anodines, mais additionnées elles pèsent.')}
-    <div class="num" style="font-size:22px;font-weight:600">${eur(smallT)} <span class="muted" style="font-size:14px;font-weight:400">en ${small.length} achats · ${eur(smallT/n)}/mois</span></div>
+    <button class="drillrow" data-act="drill" data-t="small" data-id="0"><span class="num" style="font-size:22px;font-weight:600">${eur(smallT)} <span class="muted" style="font-size:14px;font-weight:400">en ${small.length} achats · ${eur(smallT/n)}/mois ›</span></span></button>
   </section>
   </div></div>` }
 
@@ -1308,9 +1338,11 @@ function viewSet(){
 /* ---------- events ---------- */
 const num=v=>{const n=pNum(v);return isNaN(n)?0:n};
 document.addEventListener('click',e=>{
+  if(e.target.id==='drill'){ closeDrill(); return }
   const t=e.target.closest('[data-act],[data-tab].tab'); if(!t) return;
   if(t.classList.contains('tab')&&t.dataset.tab){tab=t.dataset.tab;render();return}
   const a=t.dataset.act;
+  if(a==='drill'){ openDrill(t.dataset.t,t.dataset.id); return } if(a==='drillx'){ closeDrill(); return }
   if(a==='goto'){tab=t.dataset.tab;render();window.scrollTo({top:0})}
   else if(a==='pick'){document.getElementById('csv').click()}
   else if(a==='del'){const f=findOp(t.dataset.id);if(f){months[f.k].ops=months[f.k].ops.filter(o=>o.id!==t.dataset.id);saveMonth(f.k)}render()}
@@ -1330,7 +1362,7 @@ document.addEventListener('click',e=>{
   else if(a==='warnok'){ cfg.importWarn=null; saveCfg(); render() }
   else if(a==='freeoff'){ cfg.freelanceHintOff=true; saveCfg(); render() }
   else if(a==='freeon'){ cfg.profil=cfg.profil==='salarie'||!cfg.profil?'mixte':'independant'; saveCfg(); tab='pro'; toast('Suivi freelance activé : choisis ton activité dans Réglages et coche « Pro » sur ton compte pro.'); render(); window.scrollTo({top:0}) }
-  else if(a==='relcat'){relCat=t.dataset.cat||''; if(t.dataset.scope) relScope=t.dataset.scope; if(t.dataset.goto){tab='rel';window.scrollTo({top:0})} render()}
+  else if(a==='relcat'){closeDrill(); relCat=t.dataset.cat||''; if(t.dataset.scope) relScope=t.dataset.scope; if(t.dataset.goto){tab='rel';window.scrollTo({top:0})} render()}
   else if(a==='info'){const id=t.dataset.id; if(openInfo.has(id)) openInfo.delete(id); else openInfo.add(id); render()}
   else if(a==='anaN'){anaN=+t.dataset.n; render()}
   else if(a==='icsadd'){icsDownload()}
@@ -1377,7 +1409,7 @@ document.addEventListener('change',e=>{
   else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else if(k==='compteId'&&t.value==='__benef'){o.type='benef';o.compteId=''}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
-document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('wzamt')){ e.preventDefault(); const b=document.querySelector('.wz .wzok'); if(b) b.click() } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrill(); if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('wzamt')){ e.preventDefault(); const b=document.querySelector('.wz .wzok'); if(b) b.click() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
 document.addEventListener('submit',e=>{
   if(e.target.id!=='addform') return; e.preventDefault();
