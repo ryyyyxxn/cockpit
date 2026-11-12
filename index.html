@@ -885,23 +885,33 @@ function detectAbos(){ const groups={}; let ref='';
       if(prev){ s.rise=s.unit>prev.unit+0.5?prev.unit:null; s.drop=s.unit<prev.unit-0.5?prev.unit:null; s.first=prev.first; s.n+=prev.n; prev.merged=true } });
     subs.filter(s=>!s.merged).forEach(s=>out.push(s)) });
   const res=out.sort((a,b)=>(b.active-a.active)||(b.montant-a.montant)); res.probables=probs.filter(p=>!out.some(o=>o.k===p.k&&o.active)).sort((a,b)=>b.montant-a.montant); return res }
-function viewAbos(){ const list=detectAbos(), act=list.filter(a=>a.active), old=list.filter(a=>!a.active), probs=list.probables||[];
-  const tot=act.reduce((a,x)=>a+x.montant,0);
+function viewAbos(){ const list=detectAbos(), probs=(list.probables||[]), AM=cfg.aboAmounts||{}; const man=(cfg.aboManual||[]);
+  [...list,...probs].forEach(a=>{ const v=AM[a.cid]; if(v!=null&&!isNaN(v)){ a.detected=a.montant; a.montant=+v; a.unit=+v; a.over=true } });
+  const act=list.filter(a=>a.active), old=list.filter(a=>!a.active);
+  const tot=act.reduce((a,x)=>a+x.montant,0)+man.reduce((a,m)=>a+(+m.montant||0),0), nAct=act.length+man.length;
+  const amtIn=(a,id)=>`<label for="${id}" hidden>Montant par mois</label><input class="amount" id="${id}" inputmode="decimal" value="${esc(String(Math.round(a.montant*100)/100).replace('.',','))}" data-act="${a.manual?'abomamt':'aboamt'}" data-k="${esc(a.manual?a.id:a.cid)}" style="width:96px;text-align:right" aria-label="Montant par mois de ${esc(a.nom)}"> <span class="muted" style="font-weight:400">€ / mois</span>`;
   const row=a=>`<div class="abo" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--sunk)">
     <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px"><label class="lbl" for="ab-${a.cid.replace(/\W/g,'_')}" hidden>Nom de l'abonnement</label><input type="text" id="ab-${a.cid.replace(/\W/g,'_')}" value="${esc(a.nom)}" data-act="aboname" data-k="${esc(a.cid)}" style="font-weight:600;border-color:transparent;background:transparent;padding:4px 6px;min-height:0">
       <span class="muted" style="font-size:13px;padding-left:6px">${a.n} paiement${a.n>1?'s':''} depuis ${esc(shortMonth(a.first.slice(0,7)))} ${a.first.slice(0,4)} · dernier le ${a.last.slice(8,10)}/${a.last.slice(5,7)} · ${esc(a.src)}</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${a.probable?'<span class="pill warn">Probable</span>':a.active?'<span class="pill ok">Actif</span>':'<span class="pill">Plus prélevé depuis 45 jours</span>'}${a.rise?`<span class="pill warn">Hausse : ${eur(a.rise,2)} → ${eur(a.unit,2)}</span>`:''}${a.drop?`<span class="pill ok">Baisse : ${eur(a.drop,2)} → ${eur(a.unit,2)}</span>`:''}</div>
-    <div style="text-align:right;min-width:110px"><div class="num" style="font-weight:600">${eur(a.montant,2)}<span class="muted" style="font-weight:400"> / mois</span></div><div class="muted num" style="font-size:13px">${eur(a.montant*12)} / an</div></div>
+    <div style="text-align:right;min-width:150px"><div class="num" style="font-weight:600">${amtIn(a,'am-'+a.cid.replace(/\W/g,'_'))}</div><div class="muted num" style="font-size:13px">${eur(a.montant*12)} / an${a.over?` · <button class="linkbtn" data-act="aboamtreset" data-k="${esc(a.cid)}" style="padding:0;font-size:13px">détecté : ${eur(a.detected,2)}</button>`:''}</div></div>
     <button class="linkbtn" data-act="aboignore" data-k="${esc(a.cid)}">Pas un abonnement</button></div>`;
+  const mrow=m=>{ const a={...m,manual:true,montant:+m.montant||0}; return `<div class="abo" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--sunk)">
+    <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px"><label class="lbl" for="mn-${m.id}" hidden>Nom de l'abonnement</label><input type="text" id="mn-${m.id}" value="${esc(m.nom)}" data-act="abomname" data-k="${esc(m.id)}" style="font-weight:600;border-color:transparent;background:transparent;padding:4px 6px;min-height:0"><span class="muted" style="font-size:13px;padding-left:6px">Ajouté à la main${m.jour?' · prélevé le '+esc(m.jour):''}</span></div>
+    <div style="display:flex;gap:8px"><span class="pill ok">Actif</span></div>
+    <div style="text-align:right;min-width:150px"><div class="num" style="font-weight:600">${amtIn(a,'mm-'+m.id)}</div><div class="muted num" style="font-size:13px">${eur(a.montant*12)} / an</div></div>
+    <button class="linkbtn" data-act="abomdel" data-k="${esc(m.id)}">Supprimer</button></div>` };
   return `<div style="display:flex;flex-direction:column;gap:20px">
   <section class="kpis" aria-label="Résumé des abonnements">
-    <div class="kpi"><div class="muted">Abonnements actifs</div><div class="big">${act.length}</div><div class="sub">détectés dans tes relevés</div></div>
+    <div class="kpi"><div class="muted">Abonnements actifs</div><div class="big">${nAct}</div><div class="sub">détectés ou ajoutés</div></div>
     <div class="kpi"><div class="muted">Coût par mois</div><div class="big">${eur(tot)}</div><div class="sub">${cfg.revenus?Math.round(tot/cfg.revenus*100)+' % de tes revenus':''}</div></div>
     <div class="kpi"><div class="muted">Coût par an</div><div class="big ${tot*12>500?'bad':''}">${eur(tot*12)}</div><div class="sub">Ce que tu paies sans y penser</div></div>
   </section>
   <section class="card" aria-labelledby="h-abo"><h2 id="h-abo">Tes abonnements</h2>
-    <p class="muted" style="margin:0;font-size:14px">Repérés automatiquement : un même prélèvement, d'un montant stable, à date régulière, sur au moins 3 mois. Renomme-les en cliquant sur leur nom. Pour chacun, demande-toi : est-ce que je l'ai utilisé ce mois-ci ?</p>
-    ${act.length?act.map(row).join(''):`<div class="empty">${Object.keys(months).length?'Aucun abonnement détecté pour l’instant : il faut au moins 3 mois de relevés.':'Importe tes relevés (idéalement 3 mois ou plus) pour que l’appli repère tes abonnements.'}</div>`}
+    <p class="muted" style="margin:0;font-size:14px">Repérés automatiquement : un même prélèvement, d'un montant stable, à date régulière, sur au moins 3 mois. Renomme-les en cliquant sur leur nom, corrige leur montant s’il a changé. Pour chacun, demande-toi : est-ce que je l'ai utilisé ce mois-ci ?</p>
+    ${nAct?act.map(row).join('')+man.map(mrow).join(''):`<div class="empty">${Object.keys(months).length?'Aucun abonnement détecté pour l’instant : il faut au moins 3 mois de relevés.':'Importe tes relevés (idéalement 3 mois ou plus) pour que l’appli repère tes abonnements.'}</div>`}
+    <form id="abo-add" style="display:flex;flex-direction:column;gap:8px;background:var(--sunk);border-radius:14px;padding:14px;margin-top:6px"><strong style="font-size:15px">Ajouter un abonnement</strong><span class="muted" style="font-size:13px">Pour un abonnement que l’appli n’a pas repéré (ou payé en espèces, sur un autre compte…).</span>
+      <div class="editrow"><label for="abn-nom" hidden>Nom</label><input type="text" id="abn-nom" placeholder="Nom (ex. Netflix)" style="flex:2 1 160px" autocomplete="off"><label for="abn-mt" hidden>Montant par mois</label><input class="amount" id="abn-mt" inputmode="decimal" placeholder="Montant € / mois" style="flex:1 1 120px" autocomplete="off"><label for="abn-j" hidden>Jour du mois</label><input class="amount" id="abn-j" type="number" min="1" max="31" placeholder="Jour (facultatif)" style="flex:1 1 110px"><button class="btn small" type="submit">Ajouter</button></div></form>
   </section>
   ${probs.length?`<section class="card" aria-labelledby="h-abo3"><h2 id="h-abo3">Probables</h2><p class="muted" style="margin:0;font-size:14px">Des marques d'abonnement connues, vues 1 ou 2 fois seulement. Elles passeront dans « Tes abonnements » au 3e prélèvement. Coût si tu les gardes : <strong class="num">${eur(probs.reduce((a,x)=>a+x.montant,0))}</strong> par mois.</p>${probs.map(row).join('')}</section>`:''}
   ${old.length?`<section class="card" aria-labelledby="h-abo2"><h2 id="h-abo2">Arrêtés ou résiliés ?</h2><p class="muted" style="margin:0;font-size:14px">Plus prélevés depuis plus de 45 jours. Vérifie qu'ils sont bien résiliés.</p>${old.map(row).join('')}</section>`:''}
@@ -1369,6 +1379,8 @@ document.addEventListener('click',e=>{
   else if(a==='icsurssaf'){icsUrssaf()}
   else if(a==='livre'){livreDownload()}
   else if(a==='aboignore'){(cfg.aboIgnore=cfg.aboIgnore||[]).push(t.dataset.k);saveCfg();render();toast('Masqué de la liste des abonnements.')}
+  else if(a==='aboamtreset'){ delete (cfg.aboAmounts||{})[t.dataset.k]; saveCfg(); render() }
+  else if(a==='abomdel'){ cfg.aboManual=(cfg.aboManual||[]).filter(x=>x.id!==t.dataset.k); saveCfg(); render(); toast('Abonnement supprimé.') }
   else if(a==='aboreset'){cfg.aboIgnore=[];saveCfg();render()}
   else if(a==='wizard'){forceWizard=true;wz=null;render();window.scrollTo({top:0})}
   else if(a&&a.startsWith('wz-')){wzAction(a,t)}
@@ -1399,6 +1411,9 @@ document.addEventListener('change',e=>{
     touched.forEach(saveMonth); if(n) toast(`${n+1} opérations « ${o.libelle.slice(0,40)} » classées en ${CAT[v]?CAT[v].nom:v}.`); render()}}
   else if(a==='note'){const m=getMonth(cur);m.note=t.value;saveMonth(cur)}
   else if(a==='cfg'){cfg[t.dataset.k]=num(t.value);saveCfg();render()}
+  else if(a==='aboamt'){ const v=pNum(t.value); const AM=(cfg.aboAmounts=cfg.aboAmounts||{}); if(isNaN(v)||v<0) delete AM[t.dataset.k]; else AM[t.dataset.k]=Math.round(v*100)/100; saveCfg(); render() }
+  else if(a==='abomamt'){ const m=(cfg.aboManual||[]).find(x=>x.id===t.dataset.k); if(m){ const v=pNum(t.value); m.montant=isNaN(v)||v<0?0:Math.round(v*100)/100; saveCfg(); render() } }
+  else if(a==='abomname'){ const m=(cfg.aboManual||[]).find(x=>x.id===t.dataset.k); if(m){ m.nom=t.value.trim()||m.nom; saveCfg() } }
   else if(a==='aboname'){(cfg.aboNames=cfg.aboNames||{})[t.dataset.k]=t.value.trim();saveCfg()}
   else if(a==='cfgsel'){cfg[t.dataset.k]=t.value;saveCfg();render()}
   else if(a==='micro'){cfg.micro=cfg.micro||{};const k=t.dataset.k;cfg.micro[k]=k==='vl'?t.checked:k==='taux'?num(t.value):t.value;if(k==='activite')delete cfg.micro.taux;saveCfg();render()}
@@ -1409,6 +1424,9 @@ document.addEventListener('change',e=>{
   else if(a==='goal'){const o=cfg.objectifs.find(x=>x.id===t.dataset.id);if(!o)return;const k=t.dataset.k;if(k==='compteId'&&t.value==='__ca'){o.type='ca';o.compteId='';o.debut=o.debut||(ymd(new Date()).slice(0,8)+'01')}else if(k==='compteId'&&t.value==='__benef'){o.type='benef';o.compteId=''}else{if(k==='compteId')delete o.type;o[k]=(k==='cible'||k==='actuel')?num(t.value):t.value}saveCfg();render()}
 });
 document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).note=e.target.value; saveMonth(cur) } if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); wzLive() } });
+document.addEventListener('submit',e=>{ if(e.target.id!=='abo-add') return; e.preventDefault(); const nom=document.getElementById('abn-nom').value.trim(), mt=pNum(document.getElementById('abn-mt').value), j=Math.round(+document.getElementById('abn-j').value);
+  if(!nom||isNaN(mt)||mt<=0){ toast('Indique un nom et un montant par mois.'); return }
+  (cfg.aboManual=cfg.aboManual||[]).push({id:uid(),nom,montant:Math.round(mt*100)/100,...(j>=1&&j<=31?{jour:'le '+j}:{})}); saveCfg(); render(); toast('« '+nom+' » ajouté à tes abonnements.') });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrill(); if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('wzamt')){ e.preventDefault(); const b=document.querySelector('.wz .wzok'); if(b) b.click() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
 document.addEventListener('submit',e=>{
