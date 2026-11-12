@@ -11,6 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F6F6FB">
+<script>(function(){try{var t=localStorage.getItem('cockpit-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0D0F1A':'#F6F6FB')}}catch(e){}})()</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -151,6 +152,8 @@ td.r,th.r{text-align:right}
 .editrow input[type=text]{flex:1 1 140px;min-width:0}
 .locked{background:var(--ok-bg);color:var(--accent);padding:10px 14px;border-radius:12px;font-weight:600}
 
+.themebtn{width:40px;height:40px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer;flex:none}
+.themebtn:hover{border-color:var(--accent);color:var(--accent)}
 .drillrow{cursor:pointer;background:none;border:none;color:inherit;font:inherit;text-align:left;min-height:0}
 button.catline.drillrow{width:100%;padding:6px 8px;margin:0 -8px;border-radius:10px;box-sizing:content-box;max-width:100%}
 button.catline.drillrow:hover,button.catline.drillrow:focus-visible{background:var(--sunk)}
@@ -279,6 +282,23 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><style>
+#splash{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#F6F6FB;transition:opacity .4s ease}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #splash{background:#0D0F1A}}
+:root[data-theme="dark"] #splash{background:#0D0F1A}
+#splash.out{opacity:0;pointer-events:none}
+#splash .tile{width:112px;height:112px;border-radius:30px;overflow:hidden;box-shadow:0 22px 44px -18px rgba(79,70,229,.75);animation:spPop .55s cubic-bezier(.2,1.3,.4,1) both}
+#splash svg{width:100%;height:100%;display:block}
+#splash .c{stroke-dasharray:1;stroke-dashoffset:1;animation:spDraw .55s .15s cubic-bezier(.6,0,.2,1) forwards}
+#splash .b1{stroke-dasharray:1;stroke-dashoffset:1;animation:spDraw .35s .55s ease-out forwards}
+#splash .arr{opacity:0;animation:spDrop .85s .85s cubic-bezier(.3,0,.4,1) forwards}
+@keyframes spPop{from{transform:scale(.6);opacity:0}}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+@keyframes spDrop{0%{transform:translateX(-440px);opacity:1}55%{transform:translateX(22px);opacity:1}72%{transform:translateX(-14px);opacity:1}87%{transform:translateX(6px);opacity:1}100%{transform:translateX(0);opacity:1}}
+@media (prefers-reduced-motion:reduce){#splash .tile,#splash .c,#splash .b1,#splash .arr{animation:none;opacity:1;stroke-dashoffset:0}}
+</style><div class="tile"><svg viewBox="0 0 512 512"><defs><linearGradient id="sp-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C7D2FE"/></linearGradient></defs><rect width="512" height="512" fill="#4F46E5"/><path class="c" pathLength="1" d="M370 146 A156 156 0 1 0 370 366" fill="none" stroke="url(#sp-g)" stroke-width="84" stroke-linecap="round"/><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="b1c"><line class="b1" pathLength="1" x1="84" y1="216" x2="240" y2="216" stroke="#FFFFFF" stroke-width="30"/></g><g class="arr"><g stroke="#4F46E5" stroke-width="54"><polyline points="84,292 200,292 322,186"/><polyline points="276,182 326,182 326,232"/></g><g stroke="#FFFFFF" stroke-width="30"><polyline points="84,292 200,292 322,186"/><polyline points="276,182 326,182 326,232"/></g></g></g></svg></div>
+<script>(function(){var s=document.getElementById('splash');if(!s)return;var done=false;function end(){if(done)return;done=true;s.classList.add('out');setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s)},450)}
+var rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;setTimeout(end,rm?500:2000);s.addEventListener('click',end)})()</script></div>
 
 <div class="wrap">
   <header class="top">
@@ -289,6 +309,7 @@ dialog#ask::backdrop{background:rgba(0,0,0,.45)}
       <button class="btn askbtn" id="askopen" type="button" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Demander à Claude</button>
     </div>
     <div class="row" style="align-items:flex-end;gap:12px">
+      <button class="iconbtn themebtn" id="themebtn" type="button" data-act="themetoggle" aria-label="Changer de thème"></button>
       <div class="monthpick">
         <label class="lbl" for="month">Mois</label>
         <input type="month" id="month">
@@ -1097,6 +1118,7 @@ function wzLive(){ if(!wz) return; document.querySelectorAll('.wzamt').forEach(i
 
 /* ---------- rendering ---------- */
 function render(){ now=new Date();
+  themeBtn();
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
   if(!ready){ return }
   if(!db){ return }
@@ -1296,9 +1318,18 @@ function viewRel(){
   </div></div>`;
 }
 
+const THEME_ICO={sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>'};
+function themeMode(){ try{ const t=localStorage.getItem('cockpit-theme'); return t==='light'||t==='dark'?t:'auto' }catch(e){ return document.documentElement.getAttribute('data-theme')||'auto' } }
+function themeIsDark(){ const m=themeMode(); return m==='dark'||(m==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches) }
+function setTheme(m){ try{ if(m==='auto') localStorage.removeItem('cockpit-theme'); else localStorage.setItem('cockpit-theme',m) }catch(e){}
+  if(m==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',m);
+  const mt=document.querySelector('meta[name="theme-color"]'); if(mt) mt.setAttribute('content',themeIsDark()?'#0D0F1A':'#F6F6FB'); themeBtn() }
+function themeBtn(){ const b=document.getElementById('themebtn'); if(!b) return; const d=themeIsDark(); b.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d?THEME_ICO.sun:THEME_ICO.moon}</svg>`; b.setAttribute('aria-label',d?'Passer au thème clair':'Passer au thème sombre'); b.title=b.getAttribute('aria-label') }
 function viewSet(){
-  const b=cfg.budgets||{};
+  const b=cfg.budgets||{}, tm=themeMode();
   return `<div style="display:flex;flex-direction:column;gap:20px">
+  <section class="card" aria-labelledby="h-theme"><h2 id="h-theme">Apparence</h2><p class="muted" style="margin:0;font-size:14px">Choisis le thème de l’appli. « Auto » suit le réglage de ton téléphone ou de ton ordinateur. Ce choix est retenu sur cet appareil.</p>
+    <div class="wzseg" role="group" aria-label="Thème">${[['auto','Auto'],['light','Clair'],['dark','Sombre']].map(([v,l])=>`<button type="button" class="${tm===v?'on':''}" data-act="theme" data-v="${v}" aria-pressed="${tm===v}">${l}</button>`).join('')}</div></section>
   ${viewMicroSettings()}
   <div class="settings-grid">
   <section class="card" aria-labelledby="h-gen"><h2 id="h-gen">Revenus et enveloppes</h2>
@@ -1380,6 +1411,8 @@ document.addEventListener('click',e=>{
   else if(a==='livre'){livreDownload()}
   else if(a==='aboignore'){(cfg.aboIgnore=cfg.aboIgnore||[]).push(t.dataset.k);saveCfg();render();toast('Masqué de la liste des abonnements.')}
   else if(a==='aboconfirm'){ const pr=(detectAbos().probables||[]).find(x=>x.cid===t.dataset.k); if(pr){ const v=(cfg.aboAmounts||{})[pr.cid]; (cfg.aboManual=cfg.aboManual||[]).push({id:uid(),nom:pr.nom,montant:v!=null?+v:Math.round(pr.montant*100)/100,from:pr.cid}); saveCfg(); render(); toast('« '+pr.nom+' » ajouté à tes abonnements.') } }
+  else if(a==='theme'){ setTheme(t.dataset.v); render(); return }
+  else if(a==='themetoggle'){ setTheme(themeIsDark()?'light':'dark'); if(tab==='set') render(); return }
   else if(a==='aboamtreset'){ delete (cfg.aboAmounts||{})[t.dataset.k]; saveCfg(); render() }
   else if(a==='abomdel'){ cfg.aboManual=(cfg.aboManual||[]).filter(x=>x.id!==t.dataset.k); saveCfg(); render(); toast('Abonnement supprimé.') }
   else if(a==='aboreset'){cfg.aboIgnore=[];saveCfg();render()}
