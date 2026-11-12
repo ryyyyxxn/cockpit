@@ -439,6 +439,7 @@ const CATS=[
  {id:'epargne',nom:'Épargne & investissement',g:'epargne'},
  {id:'revenu',nom:'Revenus',g:'revenu'},
  {id:'interne',nom:'Virement interne (ignoré)',g:'interne'},
+ {id:'ajust',nom:'Ajustement de solde (rapprochement)',g:'interne'},
  {id:'ca',nom:'Pro · Chiffre d’affaires encaissé',g:'pro'},
  {id:'achats_pro',nom:'Pro · Achats / stock',g:'pro'},
  {id:'frais_pro',nom:'Pro · Frais (envois, logiciels…)',g:'pro'},
@@ -637,10 +638,14 @@ function importOps(list,src,note){
     const ex=exist[k]||(exist[k]=countKeys(m.ops,x=>opKey(srcOf(x),x))); const kk=opKey(src,o); seen[kk]=(seen[kk]||0)+1;
     if(seen[kk]<=(ex[kk]||0)){dup++;return}
     m.ops.push({id:uid(),date:o.date,libelle:o.libelle,montant:o.montant,src,cat:guessCat(o.libelle,o.montant,src,o.type)}); added[k]=(added[k]||0)+1 });
-  importChecks(list,src,added); Object.keys(added).forEach(saveMonth); cfg.lastImport=new Date().toISOString(); saveCfg();
+  importChecks(list,src,added); Object.keys(added).forEach(saveMonth); cfg.lastImport=new Date().toISOString();
+  let anchorMsg=''; { const ca=(cfg.comptes||[]).find(x=>x.id===src), withS=list.filter(o=>o.solde!=null&&!isNaN(o.solde));
+    if(ca&&withS.length){ const mx=withS.reduce((a,o)=>o.date>a?o.date:a,''), desc=list[0].date>=list[list.length-1].date, cand=withS.filter(o=>o.date===mx), last=desc?cand[0]:cand[cand.length-1];
+      if(!ca.soldeDate||mx>=ca.soldeDate){ const before=+ca.montant||0; ca.soldeRef=last.solde; ca.soldeDate=mx; ca.montant=last.solde; ca.pointe=mx; const d=Math.round((last.solde-before)*100)/100; anchorMsg=' Solde de '+ca.nom+' aligné sur ton relevé : '+eur(last.solde,2)+(Math.abs(d)>=0.01?' (écart corrigé : '+(d>0?'+':'')+eur(d,2)+')':'')+'.' } } }
+  saveCfg();
   const total=Object.values(added).reduce((a,b)=>a+b,0);
   const parts=Object.keys(added).sort().map(k=>shortMonth(k)+' : '+added[k]).join(', ');
-  toast((note?note+' ':'')+(total?`${srcName(src)} : ${total} opérations importées (${parts})${dup?`, ${dup} doublons ignorés`:''}${cfg.importWarn?'. À vérifier : regarde le bandeau en haut de Relevé.':''}`:'Aucune nouvelle opération : tout était déjà importé.'));
+  toast((note?note+' ':'')+(total?`${srcName(src)} : ${total} opérations importées (${parts})${dup?`, ${dup} doublons ignorés`:''}${cfg.importWarn?'. À vérifier : regarde le bandeau en haut de Relevé.':''}.${anchorMsg}`:'Aucune nouvelle opération : tout était déjà importé.'+anchorMsg));
   render();
 }
 
@@ -717,6 +722,27 @@ const ht=(tag,id,title,cls)=>`<div class="hrow"><${tag} id="${id}" ${cls?`class=
 /* ---------- analyses ---------- */
 let anaN=6;
 const isDepOp=o=>{ const c=CAT[o.cat]; return +o.montant<0&&!isProAcc(srcOf(o))&&c&&c.g!=='interne'&&c.g!=='epargne'&&c.g!=='revenu'&&c.g!=='pro' };
+function rappOps(c){ const d0=c.soldeDate||''; const own=isCourant(c)?Object.values(months).flatMap(m=>m.ops||[]).filter(o=>srcOf(o)===c.id&&o.date>d0):((accHist[c.id]||{}).ops||[]).filter(o=>o.date>d0); return own.sort((a,b)=>b.date.localeCompare(a.date)) }
+function rappDiff(c,v){ return Math.round((v-(+c.montant||0))*100)/100 }
+function openRapp(id){ closeDrill(); const c=(cfg.comptes||[]).find(x=>x.id===id); if(!c) return; const ops=rappOps(c), prev=document.activeElement;
+  const last=(cfg.rapprochements||[]).filter(r=>r.id===id).slice(-1)[0];
+  const el=document.createElement('div'); el.id='drill'; el.className='drillbg'; el._prev=prev;
+  el.innerHTML=`<div class="drillbox" role="dialog" aria-modal="true" aria-labelledby="drill-t" data-rapp="${esc(id)}"><div class="drillh"><div><h2 id="drill-t" style="margin:0;font-size:18px">Rapprocher · ${esc(c.nom)}</h2><span class="muted" style="font-size:13px">Compare le solde de l’appli avec celui de ta banque</span></div><button class="iconbtn" data-act="drillx" aria-label="Fermer">✕</button></div>
+  <div class="drillbody" style="gap:12px">
+    <div class="acct"><span>Solde calculé par l’appli</span><strong class="num">${eur(+c.montant||0,2)}</strong></div>
+    <div class="muted" style="font-size:13px">Point de départ : ${eur(+c.soldeRef||0,2)} le ${c.soldeDate?esc(fmtD(new Date(c.soldeDate+'T12:00:00'))):'—'}, puis ${ops.length} opération${ops.length>1?'s':''} depuis.${last?` Dernier rapprochement : ${esc(fmtD(new Date(last.date+'T12:00:00')))} (écart ${eur(last.ecart,2)}).`:''}</div>
+    <div class="q" style="display:flex;flex-direction:column;gap:6px"><label for="rapp-in" style="font-weight:600">Solde affiché par ta banque aujourd’hui (€)</label><input class="amount" id="rapp-in" inputmode="decimal" autocomplete="off" placeholder="Ex. 124,71" style="text-align:right"></div>
+    <div class="acct" id="rapp-diff" aria-live="polite"><span>Écart</span><strong class="num">—</strong></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-act="rappalign" disabled>Aligner sur ma banque</button>${isCourant(c)?`<button class="btn ghost" data-act="rappadj" disabled>Aligner et garder une trace de l’écart</button>`:''}</div>
+    <span class="muted" style="font-size:13px">« Aligner » prend le solde de ta banque comme nouveau point de départ. La trace ajoute une opération « Ajustement de solde », ignorée dans ton budget. Un écart vient souvent d’une opération en attente, d’un relevé pas encore importé ou d’un virement entre comptes mal rangé.</span>
+    ${ops.length?`<strong style="font-size:14px">Opérations prises en compte depuis le point de départ</strong>${ops.slice(0,25).map(o=>`<div class="drillop"><div class="dl"><span class="dd num">${esc(fmtD(new Date(o.date+'T12:00:00')))}</span><span>${esc(o.libelle)}</span></div><span class="num">${eur(o.montant,2)}</span></div>`).join('')}${ops.length>25?`<span class="muted" style="font-size:13px">… et ${ops.length-25} de plus.</span>`:''}`:''}
+  </div></div>`;
+  document.body.appendChild(el); document.body.style.overflow='hidden'; const x=el.querySelector('#rapp-in'); if(x&&window.innerWidth>640) x.focus() }
+function rappInput(){ const box=document.querySelector('[data-rapp]'); if(!box) return; const c=(cfg.comptes||[]).find(x=>x.id===box.dataset.rapp); if(!c) return; const v=pNum(document.getElementById('rapp-in').value), ok=!isNaN(v);
+  const d=ok?rappDiff(c,v):0, el=document.querySelector('#rapp-diff strong'); el.textContent=ok?(Math.abs(d)<0.005?'Aucun écart ✓':(d>0?'+':'')+eur(d,2)):'—'; el.style.color=ok&&Math.abs(d)>=0.005?'var(--bad,#C2410C)':''; box.querySelectorAll('[data-act="rappalign"],[data-act="rappadj"]').forEach(b=>b.disabled=!ok) }
+function rappDo(adj){ const box=document.querySelector('[data-rapp]'); if(!box) return; const c=(cfg.comptes||[]).find(x=>x.id===box.dataset.rapp); const v=pNum(document.getElementById('rapp-in').value); if(!c||isNaN(v)) return;
+  const d=rappDiff(c,v), today=ymd(new Date()); if(adj&&Math.abs(d)>=0.005){ const m=getMonth(periodOf(today)); m.ops.push({id:uid(),date:today,libelle:'Ajustement de rapprochement',montant:d,src:c.id,cat:'ajust'}); saveMonth(periodOf(today)) }
+  (cfg.rapprochements=cfg.rapprochements||[]).push({id:c.id,date:today,ecart:d}); cfg.rapprochements=cfg.rapprochements.slice(-40); setSolde(c,Math.round(v*100)/100); c.pointe=today; saveCfg(); closeDrill(); render(); toast(Math.abs(d)<0.005?c.nom+' : aucun écart, tout concorde.':c.nom+' aligné sur ta banque (écart : '+(d>0?'+':'')+eur(d,2)+').') }
 const DR_TITLES={wd:i=>'Dépenses du '+['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][+i],small:()=>'Petites dépenses (moins de 10 €)',cat:id=>(CAT[id]||{}).nom||id,cmp:id=>((CAT[id]||{}).nom||id)+' · '+monthLabel(cur),mer:id=>aboLabel(id.startsWith('B:')?id:id.split(' ').join(' ')),mon:id=>'Dépenses · '+monthLabel(id)};
 const merKey=l=>{ const k=aboKey(l)||'?'; return k.startsWith('B:')?k:k.split(' ').sort().join(' ') };
 function drillList(t,id){ const keys=Array.from({length:anaN},(_,i)=>addMonths(cur,i-anaN+1)), wd=keys.filter(k=>months[k]&&(months[k].ops||[]).length);
@@ -1242,7 +1268,7 @@ function viewDash(){
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="hrow"><h2 id="h-pat">Comptes</h2>${ib('k-acc')}</div><span class="muted" style="font-size:13px">Saisis un solde une fois, tes relevés font le reste</span></div>
       ${ip('k-acc','Quand tu tapes un solde, il devient le point de départ. Ensuite, chaque relevé importé le met à jour tout seul : les opérations du compte lui-même, et pour un livret ou Trade Republic, les virements que tu y fais depuis ta banque (repérés grâce au nom du compte dans le libellé). Un retrait d’un livret vers ta banque n’indique pas de quel livret il vient : dans ce cas, corrige le solde à la main.')}
       ${total>0?`<div class="split" role="img" aria-label="Répartition du patrimoine">${sorted.filter(c=>c.montant>0).map((c,i)=>`<span style="width:${c.montant/total*100}%;background:${COLORS[i%COLORS.length]}"></span>`).join('')}</div>`:''}
-      ${sorted.map((c,i)=>`<div class="acct accrow"><label for="acc-${c.id}"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span><span class="nm">${esc(c.nom)}</span>${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}${autoInfo[c.id]?` <span class="pill ok" style="margin-left:6px" title="${autoInfo[c.id].n} opération(s) prise(s) en compte, jusqu’au ${autoInfo[c.id].last.slice(8,10)}/${autoInfo[c.id].last.slice(5,7)}">auto</span>`:''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
+      ${sorted.map((c,i)=>`<div class="acct accrow"><label for="acc-${c.id}"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span><span class="nm">${esc(c.nom)}</span><button type="button" class="pill drillrow rappbtn" data-act="rapp" data-id="${c.id}" style="margin-left:6px;color:var(--accent);cursor:pointer" aria-label="Rapprocher ${esc(c.nom)} avec ta banque">rapprocher</button>${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}${autoInfo[c.id]?` <span class="pill ok" style="margin-left:6px" title="${autoInfo[c.id].n} opération(s) prise(s) en compte, jusqu’au ${autoInfo[c.id].last.slice(8,10)}/${autoInfo[c.id].last.slice(5,7)}">auto</span>`:''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
     </section>
   </div>
   <div class="row">
@@ -1441,6 +1467,7 @@ document.addEventListener('click',e=>{
   if(t.classList.contains('tab')&&t.dataset.tab){tab=t.dataset.tab;render();return}
   const a=t.dataset.act;
   if(a==='drill'){ openDrill(t.dataset.t,t.dataset.id); return } if(a==='drillx'){ closeDrill(); return }
+  if(a==='rapp'){ openRapp(t.dataset.id); return } if(a==='rappalign'){ rappDo(false); return } if(a==='rappadj'){ rappDo(true); return }
   if(a==='goto'){tab=t.dataset.tab;render();window.scrollTo({top:0})}
   else if(a==='pick'){document.getElementById('csv').click()}
   else if(a==='del'){const f=findOp(t.dataset.id);if(f){months[f.k].ops=months[f.k].ops.filter(o=>o.id!==t.dataset.id);saveMonth(f.k)}render()}
@@ -1519,6 +1546,7 @@ document.addEventListener('input',e=>{ if(e.target.id==='note'){ getMonth(cur).n
 document.addEventListener('submit',e=>{ if(e.target.id!=='abo-add') return; e.preventDefault(); const nom=document.getElementById('abn-nom').value.trim(), mt=pNum(document.getElementById('abn-mt').value), j=Math.round(+document.getElementById('abn-j').value);
   if(!nom||isNaN(mt)||mt<=0){ toast('Indique un nom et un montant par mois.'); return }
   (cfg.aboManual=cfg.aboManual||[]).push({id:uid(),nom,montant:Math.round(mt*100)/100,...(j>=1&&j<=31?{jour:'le '+j}:{})}); saveCfg(); render(); toast('« '+nom+' » ajouté à tes abonnements.') });
+document.addEventListener('input',e=>{ if(e.target.id==='rapp-in') rappInput() });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrill(); if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('wzamt')){ e.preventDefault(); const b=document.querySelector('.wz .wzok'); if(b) b.click() } });
 document.addEventListener('change',e=>{ if(e.target.dataset&&e.target.dataset.wz!==undefined){ wzInput(e.target); if(e.target.tagName==='SELECT'||e.target.type==='checkbox') render(); else wzLive() } });
 document.addEventListener('submit',e=>{
