@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F6F6FB">
-<script>(function(){try{var t=localStorage.getItem('cockpit-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0D0F1A':'#F6F6FB')}}catch(e){}})()</script>
+<script>(function(){try{var t=localStorage.getItem('cockpit-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0D0F1A':'#F6F6FB')}if(localStorage.getItem('cockpit-anim')==='off')document.documentElement.setAttribute('data-anim','off')}catch(e){}})()</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -152,6 +152,29 @@ td.r,th.r{text-align:right}
 .editrow input[type=text]{flex:1 1 140px;min-width:0}
 .locked{background:var(--ok-bg);color:var(--accent);padding:10px 14px;border-radius:12px;font-weight:600}
 
+/* ---------- animations ---------- */
+html[data-anim="off"] *,html[data-anim="off"] *::before,html[data-anim="off"] *::after{animation:none!important;transition:none!important}
+html[data-anim="off"] #splash{display:none}
+@media (prefers-reduced-motion:no-preference){
+.btn,.chip,.iconbtn,.themebtn,.tab,.linkbtn,.drillrow,.wzopt,.wztile,.wzday{transition:background-color .18s,color .18s,border-color .18s,box-shadow .18s,transform .14s}
+.btn:active,.chip:active,.iconbtn:active,.themebtn:active,.tab:active{transform:scale(.95)}
+.btn:hover:not(:disabled),.chip:hover{transform:translateY(-1px)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.card,.kpi,.hero{transition:box-shadow .25s,transform .25s}
+.vir{transition:background-color .2s,opacity .2s}.vir .v{transition:opacity .25s}
+.tab[aria-selected="true"] svg{animation:tabPop .38s cubic-bezier(.3,1.6,.5,1)}
+#app.tabin>div>*{animation:tabUp .34s cubic-bezier(.2,.8,.2,1) backwards}
+#app.tabin>div>*:nth-child(2){animation-delay:.04s}#app.tabin>div>*:nth-child(3){animation-delay:.08s}#app.tabin>div>*:nth-child(4){animation-delay:.12s}#app.tabin>div>*:nth-child(5){animation-delay:.16s}#app.tabin>div>*:nth-child(6){animation-delay:.2s}#app.tabin>div>*:nth-child(n+7){animation-delay:.24s}
+#app.monthin{animation:fadeIn .26s ease-out}
+.toast:not([hidden]){animation:toastIn .28s cubic-bezier(.2,.8,.2,1)}
+.drillbg{animation:fadeIn .2s ease-out}.drillbox{animation:sheetUp .32s cubic-bezier(.2,.8,.2,1)}
+.pill,.triage,.warnbox{animation:fadeIn .3s ease-out}
+}
+@keyframes tabUp{from{opacity:0;transform:translateY(12px)}}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes tabPop{0%{transform:scale(.7)}100%{transform:scale(1)}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}}
+@keyframes sheetUp{from{transform:translateY(28px);opacity:.4}}
 .themebtn{width:40px;height:40px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer;flex:none}
 .themebtn:hover{border-color:var(--accent);color:var(--accent)}
 .drillrow{cursor:pointer;background:none;border:none;color:inherit;font:inherit;text-align:left;min-height:0}
@@ -457,7 +480,7 @@ const eur=(n,d=0)=>(Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:
 const uid=()=>Math.random().toString(36).slice(2,10);
 const monthLabel=k=>{const [y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
 const shortMonth=k=>{const [y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('fr-FR',{month:'short'})};
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3200)}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;t.style.animation='none';void t.offsetWidth;t.style.animation='';clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3200)}
 
 /* ---------- persistence ---------- */
 let cfgTimer=null, cfgDirty=0; const monthTimers={}, monthDirty={};
@@ -1117,6 +1140,21 @@ function wzLive(){ if(!wz) return; document.querySelectorAll('.wzamt').forEach(i
   wzRing() }
 
 /* ---------- rendering ---------- */
+const anim={tab:null,cur:null,nums:{},bars:{}};
+const animOn=()=>document.documentElement.getAttribute('data-anim')!=='off'&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+const NUM_RE=/^([+\-−]?)(\d(?:[\d\s  ]*\d)?)(,(\d+))?(\s?[€%])?$/;
+function parseNum(t){ const m=NUM_RE.exec(String(t).trim()); if(!m) return null; const v=parseFloat(m[2].replace(/[\s  ]/g,'')+(m[4]?'.'+m[4]:'')); return {v:(m[1]==='-'||m[1]==='−')?-v:v,d:m[4]?m[4].length:0,suf:m[5]||'',plus:m[1]==='+'} }
+function animNum(el,from,to,info,orig){ cancelAnimationFrame(el._ra); const t0=performance.now(), dur=Math.min(900,420+Math.abs(to-from)/(Math.abs(to)+1)*400);
+  const fmt=x=>{ const a=Math.abs(x).toLocaleString('fr-FR',{minimumFractionDigits:info.d,maximumFractionDigits:info.d}); return (x<0&&Number(a.replace(/\s|,/g,''))!==0?'−':info.plus&&x>0?'+':'')+a+info.suf };
+  const stp=n=>{ const p=Math.min(1,(n-t0)/dur), e=1-Math.pow(1-p,3); if(p<1){ el.textContent=fmt(from+(to-from)*e); el._ra=requestAnimationFrame(stp) } else el.textContent=orig }; el.textContent=fmt(from); el._ra=requestAnimationFrame(stp) }
+function animAfter(){ const enter=anim.tab!==tab, swap=!enter&&anim.cur!==cur&&anim.tab!==null; anim.tab=tab; anim.cur=cur; const on=animOn();
+  if(on&&(enter||swap)){ const cls=enter?'tabin':'monthin'; $app.classList.remove('tabin','monthin'); void $app.offsetWidth; $app.classList.add(cls); clearTimeout(animAfter._t); animAfter._t=setTimeout(()=>$app.classList.remove('tabin','monthin'),700) }
+  const seen={}; $app.querySelectorAll('.kpi .big,.hero .num,.hero .big,.big.num,.acct .num').forEach(el=>{ if(el.children.length||el.closest('input')) return; const info=parseNum(el.textContent); if(!info) return;
+    const lab=(el.closest('.kpi')?(el.closest('.kpi').firstElementChild||{}).textContent||'':(el.parentElement&&el.parentElement.firstElementChild&&el.parentElement.firstElementChild!==el?el.parentElement.firstElementChild.textContent:''))||''; let key=tab+'|'+lab.trim().slice(0,30); seen[key]=(seen[key]||0)+1; if(seen[key]>1) key+='#'+seen[key];
+    const prev=anim.nums[key]; anim.nums[key]=info.v; if(!on) return; const orig=el.textContent;
+    if(enter&&prev===undefined&&info.v!==0) animNum(el,0,info.v,info,orig); else if(prev!==undefined&&prev!==info.v&&!enter) animNum(el,prev,info.v,info,orig); else if(enter&&prev!==undefined&&prev!==info.v) animNum(el,prev,info.v,info,orig) });
+  $app.querySelectorAll('.bar>span').forEach((el,i)=>{ const key=tab+'|'+i, tg=el.style.width; if(!tg) return; const prev=anim.bars[key]; anim.bars[key]=tg; if(!on) return; const st=enter||prev===undefined?'0%':prev; if(st===tg) return;
+    el.style.transition='none'; el.style.width=st; void el.offsetWidth; el.style.transition=''; el.style.width=tg }) }
 function render(){ now=new Date();
   themeBtn();
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
@@ -1135,6 +1173,7 @@ function render(){ now=new Date();
   ensureAccounts(); revMigrate(); objMigrate(); objMigrate2(); parisMigrate(); syncBalances();
   document.getElementById('t-pro').hidden=!isIndep(); if(tab==='pro'&&!isIndep()) tab='dash';
   $app.innerHTML= tab==='dash'?viewDash(): tab==='rel'?viewRel(): tab==='abo'?viewAbos(): tab==='ana'?viewAna(): tab==='pro'?viewPro(): viewSet();
+  animAfter();
   if(active){const el=document.getElementById(active); if(el&&el!==document.body) el.focus()}
 }
 
@@ -1329,7 +1368,8 @@ function viewSet(){
   const b=cfg.budgets||{}, tm=themeMode();
   return `<div style="display:flex;flex-direction:column;gap:20px">
   <section class="card" aria-labelledby="h-theme"><h2 id="h-theme">Apparence</h2><p class="muted" style="margin:0;font-size:14px">Choisis le thème de l’appli. « Auto » suit le réglage de ton téléphone ou de ton ordinateur. Ce choix est retenu sur cet appareil.</p>
-    <div class="wzseg" role="group" aria-label="Thème">${[['auto','Auto'],['light','Clair'],['dark','Sombre']].map(([v,l])=>`<button type="button" class="${tm===v?'on':''}" data-act="theme" data-v="${v}" aria-pressed="${tm===v}">${l}</button>`).join('')}</div></section>
+    <div class="wzseg" role="group" aria-label="Thème">${[['auto','Auto'],['light','Clair'],['dark','Sombre']].map(([v,l])=>`<button type="button" class="${tm===v?'on':''}" data-act="theme" data-v="${v}" aria-pressed="${tm===v}">${l}</button>`).join('')}</div>
+    <h3 style="margin:6px 0 0;font-size:15px">Animations</h3><div class="wzseg" role="group" aria-label="Animations">${[['on','Activées'],['off','Désactivées']].map(([v,l])=>`<button type="button" class="${(document.documentElement.getAttribute('data-anim')==='off')===(v==='off')?'on':''}" data-act="animset" data-v="${v}" aria-pressed="${(document.documentElement.getAttribute('data-anim')==='off')===(v==='off')}">${l}</button>`).join('')}</div></section>
   ${viewMicroSettings()}
   <div class="settings-grid">
   <section class="card" aria-labelledby="h-gen"><h2 id="h-gen">Revenus et enveloppes</h2>
@@ -1411,6 +1451,7 @@ document.addEventListener('click',e=>{
   else if(a==='livre'){livreDownload()}
   else if(a==='aboignore'){(cfg.aboIgnore=cfg.aboIgnore||[]).push(t.dataset.k);saveCfg();render();toast('Masqué de la liste des abonnements.')}
   else if(a==='aboconfirm'){ const pr=(detectAbos().probables||[]).find(x=>x.cid===t.dataset.k); if(pr){ const v=(cfg.aboAmounts||{})[pr.cid]; (cfg.aboManual=cfg.aboManual||[]).push({id:uid(),nom:pr.nom,montant:v!=null?+v:Math.round(pr.montant*100)/100,from:pr.cid}); saveCfg(); render(); toast('« '+pr.nom+' » ajouté à tes abonnements.') } }
+  else if(a==='animset'){ try{ if(t.dataset.v==='off') localStorage.setItem('cockpit-anim','off'); else localStorage.removeItem('cockpit-anim') }catch(e){} if(t.dataset.v==='off') document.documentElement.setAttribute('data-anim','off'); else document.documentElement.removeAttribute('data-anim'); render(); return }
   else if(a==='theme'){ setTheme(t.dataset.v); render(); return }
   else if(a==='themetoggle'){ setTheme(themeIsDark()?'light':'dark'); if(tab==='set') render(); return }
   else if(a==='aboamtreset'){ delete (cfg.aboAmounts||{})[t.dataset.k]; saveCfg(); render() }
