@@ -590,13 +590,13 @@ function parseBank(text){
       if(dates>rows.length*.6&&iD<0) iD=i; else if(nums>rows.length*.6) iM=i; else if(len>best){best=len;iL=i} }
   }
   if(iD<0||iL<0||(iM<0&&iDe<0&&iC<0)) return null;
-  const out=[];
+  const out=[]; let pend=0;
   body.forEach(r=>{ const d=pDate(r[iD]); if(!d) return; let a;
-    if(iSt>=0&&/revert|declin|fail|annul|rejet|refus|pending|en attente/i.test(r[iSt]||'')) return;
+    if(iSt>=0&&/revert|declin|fail|annul|rejet|refus|pending|en attente/i.test(r[iSt]||'')){ if(iM>=0&&!/revert|declin|fail|annul|rejet|refus/i.test(r[iSt]||'')){ const pa=pNum(r[iM]); if(!isNaN(pa)) pend+=pa } return }
     if(iP>=0&&/saving|[ée]pargne|deposit|coffre|vault/i.test(r[iP]||'')) return;
     if(iM>=0) a=pNum(r[iM]); else { const de=pNum(r[iDe]), cr=pNum(r[iC]); a=(isNaN(cr)?0:Math.abs(cr))-(isNaN(de)?0:Math.abs(de)) }
     if(isNaN(a)) return; if(!String(r[iL]||'').trim()) return; if(iF>=0){const fe=pNum(r[iF]); if(!isNaN(fe)&&fe) a-=Math.abs(fe)} if(a===0) return; const so=iS>=0?pNum(r[iS]):NaN; out.push({date:d,libelle:(r[iL]||'').replace(/\s+/g,' ').slice(0,120),montant:Math.round(a*100)/100,solde:isNaN(so)?null:so,type:iT>=0?(r[iT]||''):''}) });
-  return out;
+  out.pend=Math.round(pend*100)/100; return out;
 }
 const FK_NOISE=new Set(['cb','carte','prlv','prelevement','prelevmt','vir','virement','inst','sepa','paiement','paiemt','achat','fact','facture','psc','du','de','le','la','les','des','a','au','ca','sa','sas','sarl','fr','europe','ref','motif']);
 function fullKey(l){ return deacc(l).split(/[^a-z0-9]+/).filter(w=>w&&!/[0-9]/.test(w)&&!FK_NOISE.has(w)).join(' ') }
@@ -641,8 +641,8 @@ function importOps(list,src,note){
     m.ops.push({id:uid(),date:o.date,libelle:o.libelle,montant:o.montant,src,cat:guessCat(o.libelle,o.montant,src,o.type)}); added[k]=(added[k]||0)+1 });
   importChecks(list,src,added); Object.keys(added).forEach(saveMonth); cfg.lastImport=new Date().toISOString();
   let anchorMsg=''; { const ca=(cfg.comptes||[]).find(x=>x.id===src), withS=list.filter(o=>o.solde!=null&&!isNaN(o.solde));
-    if(ca&&withS.length){ const mx=withS.reduce((a,o)=>o.date>a?o.date:a,''), desc=list[0].date>=list[list.length-1].date, cand=withS.filter(o=>o.date===mx), last=desc?cand[0]:cand[cand.length-1];
-      if(!ca.soldeDate||mx>=ca.soldeDate){ const before=+ca.montant||0; ca.soldeRef=last.solde; ca.soldeDate=mx; ca.montant=last.solde; ca.pointe=mx; const d=Math.round((last.solde-before)*100)/100; anchorMsg=' Solde de '+ca.nom+' aligné sur ton relevé : '+eur(last.solde,2)+(Math.abs(d)>=0.01?' (écart corrigé : '+(d>0?'+':'')+eur(d,2)+')':'')+'.' } } }
+    if(ca&&withS.length){ const mx=list.reduce((a,o)=>o.date>a?o.date:a,''), desc=list[0].date>list[list.length-1].date, last=desc?withS[0]:withS[withS.length-1];
+      if(!ca.soldeDate||mx>=ca.soldeDate){ const before=+ca.montant||0; const pe=list.pend||0, bal=Math.round((last.solde+pe)*100)/100; ca.soldeRef=bal; ca.soldeDate=mx; ca.montant=bal; ca.pointe=mx; const d=Math.round((bal-before)*100)/100; anchorMsg=' Solde de '+ca.nom+' aligné sur ton relevé : '+eur(bal,2)+(pe?' (dont '+eur(pe,2)+' d’opérations en attente)':'')+(Math.abs(d)>=0.01?' (écart corrigé : '+(d>0?'+':'')+eur(d,2)+')':'')+'.' } } }
   saveCfg();
   const total=Object.values(added).reduce((a,b)=>a+b,0);
   const parts=Object.keys(added).sort().map(k=>shortMonth(k)+' : '+added[k]).join(', ');
