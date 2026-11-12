@@ -117,11 +117,28 @@ button{font:inherit}
 .acct .sw{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:8px}
 .split{display:flex;height:14px;border-radius:99px;overflow:hidden;gap:2px;background:var(--sunk)}
 .tablebox{overflow-x:auto}
+@media (max-width:1090px) and (min-width:641px){
+  .ops thead{display:none}
+  .ops,.ops tbody{display:block}
+  .ops tr{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"lib lib amt" "date src src" "cat cat del";gap:6px 10px;padding:12px 0;border-bottom:1px solid var(--sunk);align-items:center}
+  .ops td{border:0;padding:0}
+  .ops td.c-lib{grid-area:lib;min-width:0!important;font-weight:600}
+  .ops td.c-amt{grid-area:amt;text-align:right}
+  .ops td.c-date{grid-area:date;color:var(--muted);font-size:13px}
+  .ops td.c-src{grid-area:src;font-size:12px}
+  .ops td.c-cat{grid-area:cat}
+  .ops td.c-cat select{min-width:0;width:100%}
+  .ops td.c-del{grid-area:del}
+}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:8px;border-bottom:1px solid var(--line)}
 td{padding:8px;border-bottom:1px solid var(--sunk);vertical-align:middle}
 td.r,th.r{text-align:right}
-.ops td select{min-width:170px}
+.ops td select{min-width:150px;max-width:230px;width:100%}
+.ops td.c-lib{min-width:140px;overflow-wrap:anywhere}
+.accrow>label{flex:1 1 0;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 0}
+.accrow .nm{min-width:0;overflow-wrap:anywhere}
+.accrow input.amount{flex:0 0 132px;width:132px;text-align:right}
 @media (max-width:640px){
   .ops thead{display:none}
   .ops,.ops tbody{display:block}
@@ -1225,7 +1242,7 @@ function viewDash(){
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="hrow"><h2 id="h-pat">Comptes</h2>${ib('k-acc')}</div><span class="muted" style="font-size:13px">Saisis un solde une fois, tes relevés font le reste</span></div>
       ${ip('k-acc','Quand tu tapes un solde, il devient le point de départ. Ensuite, chaque relevé importé le met à jour tout seul : les opérations du compte lui-même, et pour un livret ou Trade Republic, les virements que tu y fais depuis ta banque (repérés grâce au nom du compte dans le libellé). Un retrait d’un livret vers ta banque n’indique pas de quel livret il vient : dans ce cas, corrige le solde à la main.')}
       ${total>0?`<div class="split" role="img" aria-label="Répartition du patrimoine">${sorted.filter(c=>c.montant>0).map((c,i)=>`<span style="width:${c.montant/total*100}%;background:${COLORS[i%COLORS.length]}"></span>`).join('')}</div>`:''}
-      ${sorted.map((c,i)=>`<div class="acct"><label for="acc-${c.id}" style="display:flex;align-items:center"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span>${esc(c.nom)}${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}${autoInfo[c.id]?` <span class="pill ok" style="margin-left:6px" title="${autoInfo[c.id].n} opération(s) prise(s) en compte, jusqu’au ${autoInfo[c.id].last.slice(8,10)}/${autoInfo[c.id].last.slice(5,7)}">auto</span>`:''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
+      ${sorted.map((c,i)=>`<div class="acct accrow"><label for="acc-${c.id}"><span class="sw" style="background:${COLORS[i%COLORS.length]}" aria-hidden="true"></span><span class="nm">${esc(c.nom)}</span>${c.dispo?' <span class="pill" style="margin-left:6px">dispo</span>':''}${isFull(c)?' <span class="pill warn" style="margin-left:6px">plein</span>':''}${autoInfo[c.id]?` <span class="pill ok" style="margin-left:6px" title="${autoInfo[c.id].n} opération(s) prise(s) en compte, jusqu’au ${autoInfo[c.id].last.slice(8,10)}/${autoInfo[c.id].last.slice(5,7)}">auto</span>`:''}</label><input class="amount" id="acc-${c.id}" inputmode="decimal" value="${c.montant}" data-act="acc" data-id="${c.id}"></div>`).join('')}
     </section>
   </div>
   <div class="row">
